@@ -6,6 +6,7 @@ import com.tracelm.backend.provider.LLMProvider;
 import com.tracelm.backend.provider.GeminiProvider;
 import com.tracelm.backend.repository.ConversationRepository;
 import com.tracelm.backend.repository.MessageRepository;
+import com.tracelm.backend.logging.LoggingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +17,7 @@ public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final GeminiProvider llmProvider;
+    private final LoggingService loggingService;
 
     public String processMessage(String prompt) {
 
@@ -34,7 +36,29 @@ public class ConversationService {
 
         messageRepository.save(userMessage);
 
-        String aiResponse = llmProvider.generateResponse(prompt);
+        long startTime = System.currentTimeMillis();
+        String aiResponse;
+        try {
+            aiResponse = llmProvider.generateResponse(prompt);
+            long latency = System.currentTimeMillis() - startTime;
+
+            loggingService.logInference(
+                    conversation.getId(),
+                    "Gemini",
+                    "gemini-flash-latest",
+                    latency,
+                    "SUCCESS"
+            );
+        } catch (Exception e) {
+            loggingService.logInference(
+                    conversation.getId(),
+                    "Gemini",
+                    "gemini-flash-latest",
+                    0L,
+                    "FAILED"
+            );
+            throw new RuntimeException("Failed to generate AI response", e);
+        }
 
         Message assistantMessage = Message.builder()
                 .conversation(conversation)
