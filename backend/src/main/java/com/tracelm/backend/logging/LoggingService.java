@@ -17,6 +17,8 @@ public class LoggingService {
             String provider,
             String model,
             Long latencyMs,
+            Integer inputTokens,
+            Integer outputTokens,
             String status
     ) {
 
@@ -25,6 +27,8 @@ public class LoggingService {
                 .provider(provider)
                 .model(model)
                 .latencyMs(latencyMs)
+                .inputTokens(inputTokens)
+                .outputTokens(outputTokens)
                 .status(status)
                 .build();
 

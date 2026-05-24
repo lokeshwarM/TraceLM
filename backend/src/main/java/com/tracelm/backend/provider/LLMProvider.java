@@ -1,7 +1,9 @@
 package com.tracelm.backend.provider;
 
-public interface LLMProvider {
+import com.tracelm.backend.dto.LLMResponse;
 
-    String generateResponse(String prompt);
+public interface LLMProvider {
+    
+    LLMResponse generateResponse(String prompt);
 
 }

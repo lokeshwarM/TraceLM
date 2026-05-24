@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.tracelm.backend.dto.LLMResponse;
 import java.util.List;
 import java.util.Map;
 
@@ -21,8 +22,12 @@ public class GeminiProvider implements LLMProvider {
     @Value("${gemini.url}")
     private String apiUrl;
 
+    @Value("${gemini.model}")
+    private String model;
+
+    @SuppressWarnings("unchecked")
     @Override
-    public String generateResponse(String prompt) {
+    public LLMResponse generateResponse(String prompt) {
 
         WebClient webClient = webClientBuilder.build();
 
@@ -40,7 +45,7 @@ public class GeminiProvider implements LLMProvider {
 
         String url = String.format("%s?key=%s", apiUrl, apiKey);
 
-        Map response = webClient.post()
+        Map<String, Object> response = webClient.post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
@@ -48,8 +53,16 @@ public class GeminiProvider implements LLMProvider {
                 .bodyToMono(Map.class)
                 .block();
 
+        if (response == null) {
+            throw new RuntimeException("Null response from Gemini API");
+        }
+
         List<Map<String, Object>> candidates =
                 (List<Map<String, Object>>) response.get("candidates");
+
+        if (candidates == null || candidates.isEmpty()) {
+            throw new RuntimeException("Gemini API returned empty candidates");
+        }
 
         Map<String, Object> content =
                 (Map<String, Object>) candidates.get(0).get("content");
@@ -57,6 +70,28 @@ public class GeminiProvider implements LLMProvider {
         List<Map<String, Object>> parts =
                 (List<Map<String, Object>>) content.get("parts");
 
-        return parts.get(0).get("text").toString();
+        String aiText = parts.get(0).get("text").toString();
+
+        Map<String, Object> usageMetadata =
+                (Map<String, Object>) response.get("usageMetadata");
+        
+        int promptTokens = 0;
+        int outputTokens = 0;
+        
+        if (usageMetadata != null) {
+            Number promptTokensNum = (Number) usageMetadata.get("promptTokenCount");
+            promptTokens = promptTokensNum != null ? promptTokensNum.intValue() : 0;
+            
+            Number outputTokensNum = (Number) usageMetadata.get("candidatesTokenCount");
+            outputTokens = outputTokensNum != null ? outputTokensNum.intValue() : 0;
+        }
+
+        return LLMResponse.builder()
+                .content(aiText)
+                .inputTokens(promptTokens)
+                .outputTokens(outputTokens)
+                .model(model)
+                .provider("Gemini")
+                .build();
     }
 }

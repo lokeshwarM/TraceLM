@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.tracelm.backend.dto.LLMResponse;
 import java.util.List;
 import java.util.Map;
 
@@ -22,8 +23,9 @@ public class OpenAIProvider implements LLMProvider {
     @Value("${openai.model}")
     private String model;
 
+    @SuppressWarnings("unchecked")
     @Override
-    public String generateResponse(String prompt) {
+    public LLMResponse generateResponse(String prompt) {
 
         WebClient webClient = webClientBuilder.build();
 
@@ -37,7 +39,7 @@ public class OpenAIProvider implements LLMProvider {
                 )
         );
 
-        Map response = webClient.post()
+        Map<String, Object> response = webClient.post()
                 .uri("https://api.openai.com/v1/chat/completions")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -46,12 +48,40 @@ public class OpenAIProvider implements LLMProvider {
                 .bodyToMono(Map.class)
                 .block();
 
+        if (response == null) {
+            throw new RuntimeException("Null response from OpenAI API");
+        }
+
         List<Map<String, Object>> choices =
                 (List<Map<String, Object>>) response.get("choices");
+
+        if (choices == null || choices.isEmpty()) {
+            throw new RuntimeException("OpenAI API returned empty choices");
+        }
 
         Map<String, Object> message =
                 (Map<String, Object>) choices.get(0).get("message");
 
-        return message.get("content").toString();
+        String aiText = message.get("content").toString();
+
+        Map<String, Object> usage = (Map<String, Object>) response.get("usage");
+        int promptTokens = 0;
+        int outputTokens = 0;
+
+        if (usage != null) {
+            Number promptTokensNum = (Number) usage.get("prompt_tokens");
+            promptTokens = promptTokensNum != null ? promptTokensNum.intValue() : 0;
+
+            Number outputTokensNum = (Number) usage.get("completion_tokens");
+            outputTokens = outputTokensNum != null ? outputTokensNum.intValue() : 0;
+        }
+
+        return LLMResponse.builder()
+                .content(aiText)
+                .inputTokens(promptTokens)
+                .outputTokens(outputTokens)
+                .model(model)
+                .provider("OpenAI")
+                .build();
     }
 }
