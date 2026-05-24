@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 import com.tracelm.backend.dto.ConversationResponse;
+import com.tracelm.backend.dto.ConversationMetricsResponse;
 import reactor.core.publisher.Flux;
+import org.springframework.http.codec.ServerSentEvent;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -34,11 +36,12 @@ public class ChatController {
     }
 
     @PostMapping(value = "/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> chatStream(@RequestBody Map<String, String> request) {
+    public Flux<ServerSentEvent<String>> chatStream(@RequestBody Map<String, String> request) {
         String prompt = request.get("prompt");
         String conversationIdStr = request.get("conversationId");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
-        return conversationService.processMessageStream(prompt, conversationId);
+        return conversationService.processMessageStream(prompt, conversationId)
+                .map(chunk -> ServerSentEvent.<String>builder(chunk).build());
     }
 
     @GetMapping("/conversations")
@@ -49,5 +52,10 @@ public class ChatController {
     @GetMapping("/conversations/{id}")
     public ConversationResponse getConversation(@PathVariable UUID id) {
         return conversationService.getConversation(id);
+    }
+
+    @GetMapping("/conversations/{id}/metrics")
+    public ConversationMetricsResponse getConversationMetrics(@PathVariable UUID id) {
+        return conversationService.getConversationMetrics(id);
     }
 }

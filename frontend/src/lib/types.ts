@@ -22,3 +22,20 @@ export interface ConversationResponse {
     createdAt: string;
     messages?: MessageResponse[];
 }
+
+export interface MetricsOverviewResponse {
+    totalRequests: number;
+    avgLatency: number;
+    totalConversations: number;
+    totalTokens: number;
+    successRate: number;
+}
+
+export interface ConversationMetricsResponse {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    avgLatency: number;
+    requestCount: number;
+    successRate: number;
+}

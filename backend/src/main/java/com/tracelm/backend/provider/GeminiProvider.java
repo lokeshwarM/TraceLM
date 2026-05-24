@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.tracelm.backend.dto.LLMResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class GeminiProvider implements LLMProvider {
 
     private final WebClient.Builder webClientBuilder;
+    private final ObjectMapper objectMapper;
 
     @Value("${gemini.api-key}")
     private String apiKey;
@@ -113,7 +115,9 @@ public class GeminiProvider implements LLMProvider {
                 )
         );
 
-        String streamUrl = String.format("%s?key=%s&alt=sse", apiUrl.replace(":generateContent", ":streamGenerateContent"), apiKey);
+        // Gemini streaming endpoint uses :streamGenerateContent?alt=sse
+        String streamUrl = String.format("%s?key=%s&alt=sse",
+                apiUrl.replace(":generateContent", ":streamGenerateContent"), apiKey);
 
         return webClient.post()
                 .uri(streamUrl)
@@ -121,22 +125,47 @@ public class GeminiProvider implements LLMProvider {
                 .bodyValue(requestBody)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
-                .bodyToFlux(Map.class)
-                .map(response -> {
+                .bodyToFlux(org.springframework.http.codec.ServerSentEvent.class)
+                .map(sse -> (String) sse.data())
+                .filter(json -> json != null && !json.isEmpty())
+                .flatMap(json -> {
                     try {
-                        List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+                        Map<String, Object> parsed = objectMapper.readValue(json, Map.class);
+
+                        List<Map<String, Object>> candidates =
+                                (List<Map<String, Object>>) parsed.get("candidates");
+
                         if (candidates != null && !candidates.isEmpty()) {
-                            Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-                            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-                            if (parts != null && !parts.isEmpty()) {
-                                return parts.get(0).get("text").toString();
+
+                            Map<String, Object> content =
+                                    (Map<String, Object>) candidates.get(0).get("content");
+
+                            if (content != null) {
+
+                                List<Map<String, Object>> parts =
+                                        (List<Map<String, Object>>) content.get("parts");
+
+                                if (parts != null && !parts.isEmpty()) {
+
+                                    Object text = parts.get(0).get("text");
+
+                                    if (text != null && !text.toString().isEmpty()) {
+                                        return Flux.just(text.toString());
+                                    }
+                                }
                             }
                         }
-                        return "";
+
+                        return Flux.empty();
+
                     } catch (Exception e) {
-                        return "";
+                        System.err.println("Failed to parse SSE chunk: " + e.getMessage());
+                        return Flux.empty();
                     }
                 })
-                .filter(text -> !text.isEmpty());
+                .onErrorResume(e -> {
+                    System.err.println("SSE Stream error: " + e.getMessage());
+                    return Flux.empty();
+                });
     }
-}
+}
