@@ -39,3 +39,13 @@ export interface ConversationMetricsResponse {
     requestCount: number;
     successRate: number;
 }
+
+export interface InferenceLogResponse {
+    provider: string;
+    model: string;
+    latencyMs: number;
+    inputTokens: number;
+    outputTokens: number;
+    status: string;
+    createdAt: string;
+}

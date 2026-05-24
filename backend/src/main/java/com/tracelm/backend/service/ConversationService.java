@@ -11,6 +11,7 @@ import com.tracelm.backend.dto.LLMResponse;
 import com.tracelm.backend.dto.ConversationResponse;
 import com.tracelm.backend.dto.ConversationMetricsResponse;
 import com.tracelm.backend.dto.MessageResponse;
+import com.tracelm.backend.dto.InferenceLogResponse;
 import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
@@ -208,5 +209,20 @@ public class ConversationService {
                 .requestCount(totalRequests)
                 .successRate(Math.round(successRate * 100.0) / 100.0)
                 .build();
+    }
+
+    public List<InferenceLogResponse> getConversationLogs(UUID conversationId) {
+        return inferenceLogRepository.findByConversationIdOrderByCreatedAtDesc(conversationId)
+                .stream()
+                .map(log -> InferenceLogResponse.builder()
+                        .provider(log.getProvider())
+                        .model(log.getModel())
+                        .latencyMs(log.getLatencyMs())
+                        .inputTokens(log.getInputTokens())
+                        .outputTokens(log.getOutputTokens())
+                        .status(log.getStatus())
+                        .createdAt(log.getCreatedAt())
+                        .build())
+                .toList();
     }
 }

@@ -58,4 +58,9 @@ public class ChatController {
     public ConversationMetricsResponse getConversationMetrics(@PathVariable UUID id) {
         return conversationService.getConversationMetrics(id);
     }
+
+    @GetMapping("/conversations/{id}/logs")
+    public List<com.tracelm.backend.dto.InferenceLogResponse> getConversationLogs(@PathVariable UUID id) {
+        return conversationService.getConversationLogs(id);
+    }
 }

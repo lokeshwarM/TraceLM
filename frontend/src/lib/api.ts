@@ -90,3 +90,14 @@ export async function getConversationMetrics(id: string): Promise<ConversationMe
 
     return handleResponse<ConversationMetricsResponse>(response);
 }
+
+export async function getConversationLogs(id: string): Promise<import('./types').InferenceLogResponse[]> {
+    const response = await fetchWithTimeout(`${BASE_URL}/conversations/${id}/logs`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    return handleResponse<import('./types').InferenceLogResponse[]>(response);
+}

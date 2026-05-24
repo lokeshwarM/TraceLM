@@ -33,4 +33,6 @@ public interface InferenceLogRepository extends JpaRepository<InferenceLog, UUID
            "SUM(CASE WHEN i.status = 'SUCCESS' THEN 1 ELSE 0 END) as successCount " +
            "FROM InferenceLog i WHERE i.conversationId = :conversationId")
     InferenceMetricsProjection getConversationMetrics(@Param("conversationId") UUID conversationId);
+
+    java.util.List<InferenceLog> findByConversationIdOrderByCreatedAtDesc(UUID conversationId);
 }
