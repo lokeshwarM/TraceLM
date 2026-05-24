@@ -73,9 +73,14 @@ export default function ChatPage() {
     setError(null);
 
     try {
-      const chatResponse = await sendMessage(userMessage.content);
+      const chatResponse = await sendMessage(userMessage.content, activeConversationId);
       const assistantMessage: Message = { role: "ASSISTANT", content: chatResponse.response };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      if (!activeConversationId && chatResponse.conversationId) {
+        setActiveConversationId(chatResponse.conversationId);
+      }
+      
       loadConversations();
     } catch (err: unknown) {
       if (err instanceof Error) {

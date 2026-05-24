@@ -10,7 +10,9 @@ import com.tracelm.backend.logging.LoggingService;
 import com.tracelm.backend.dto.LLMResponse;
 import com.tracelm.backend.dto.ConversationResponse;
 import com.tracelm.backend.dto.MessageResponse;
+import reactor.core.publisher.Flux;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,14 +26,19 @@ public class ConversationService {
     private final GeminiProvider llmProvider;
     private final LoggingService loggingService;
 
-    public String processMessage(String prompt) {
+    public Map<String, String> processMessage(String prompt, UUID conversationId) {
 
-        Conversation conversation = Conversation.builder()
-                .title(prompt.substring(0, Math.min(prompt.length(), 30)))
-                .status("ACTIVE")
-                .build();
-
-        conversationRepository.save(conversation);
+        Conversation conversation;
+        if (conversationId != null) {
+            conversation = conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        } else {
+            conversation = Conversation.builder()
+                    .title(prompt.substring(0, Math.min(prompt.length(), 30)))
+                    .status("ACTIVE")
+                    .build();
+            conversationRepository.save(conversation);
+        }
 
         Message userMessage = Message.builder()
                 .conversation(conversation)
@@ -77,7 +84,70 @@ public class ConversationService {
 
         messageRepository.save(assistantMessage);
 
-        return response.getContent();
+        return java.util.Map.of(
+                "response", response.getContent(),
+                "conversationId", conversation.getId().toString()
+        );
+    }
+
+    public Flux<String> processMessageStream(String prompt, UUID conversationId) {
+
+        Conversation conversation;
+        if (conversationId != null) {
+            conversation = conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        } else {
+            conversation = Conversation.builder()
+                    .title(prompt.substring(0, Math.min(prompt.length(), 30)))
+                    .status("ACTIVE")
+                    .build();
+            conversationRepository.save(conversation);
+        }
+
+        Message userMessage = Message.builder()
+                .conversation(conversation)
+                .role("USER")
+                .content(prompt)
+                .build();
+
+        messageRepository.save(userMessage);
+
+        long startTime = System.currentTimeMillis();
+        StringBuilder fullResponse = new StringBuilder();
+
+        return llmProvider.generateStreamResponse(prompt)
+                .doOnNext(chunk -> fullResponse.append(chunk))
+                .doOnComplete(() -> {
+                    long latency = System.currentTimeMillis() - startTime;
+                    loggingService.logInference(
+                            conversation.getId(),
+                            "Gemini",
+                            "gemini-flash-latest",
+                            latency,
+                            0,
+                            0,
+                            "SUCCESS"
+                    );
+
+                    Message assistantMessage = Message.builder()
+                            .conversation(conversation)
+                            .role("ASSISTANT")
+                            .content(fullResponse.toString())
+                            .build();
+
+                    messageRepository.save(assistantMessage);
+                })
+                .doOnError(e -> {
+                    loggingService.logInference(
+                            conversation.getId(),
+                            "Gemini",
+                            "gemini-flash-latest",
+                            0L,
+                            0,
+                            0,
+                            "FAILED"
+                    );
+                });
     }
 
     public List<ConversationResponse> getAllConversations() {

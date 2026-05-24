@@ -1,9 +1,11 @@
 export interface ChatRequest {
     prompt: string;
+    conversationId?: string | null;
 }
 
 export interface ChatResponse {
     response: string;
+    conversationId?: string;
 }
 
 export interface MessageResponse {

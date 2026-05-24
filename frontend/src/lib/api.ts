@@ -9,8 +9,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return response.json();
 }
 
-export async function sendMessage(prompt: string): Promise<ChatResponse> {
-    const request: ChatRequest = { prompt };
+export async function sendMessage(prompt: string, conversationId?: string | null): Promise<ChatResponse> {
+    const request: ChatRequest = { prompt, conversationId };
 
     const response = await fetch(BASE_URL, {
         method: 'POST',
