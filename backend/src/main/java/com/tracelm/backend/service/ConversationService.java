@@ -8,6 +8,10 @@ import com.tracelm.backend.repository.ConversationRepository;
 import com.tracelm.backend.repository.MessageRepository;
 import com.tracelm.backend.logging.LoggingService;
 import com.tracelm.backend.dto.LLMResponse;
+import com.tracelm.backend.dto.ConversationResponse;
+import com.tracelm.backend.dto.MessageResponse;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -74,5 +78,41 @@ public class ConversationService {
         messageRepository.save(assistantMessage);
 
         return response.getContent();
+    }
+
+    public List<ConversationResponse> getAllConversations() {
+        return conversationRepository.findAll()
+                .stream()
+                .map(conversation -> ConversationResponse.builder()
+                        .id(conversation.getId())
+                        .title(conversation.getTitle())
+                        .status(conversation.getStatus())
+                        .createdAt(conversation.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    public ConversationResponse getConversation(UUID conversationId) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        List<MessageResponse> messages =
+                messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId)
+                        .stream()
+                        .map(message -> MessageResponse.builder()
+                                .id(message.getId())
+                                .role(message.getRole())
+                                .content(message.getContent())
+                                .createdAt(message.getCreatedAt())
+                                .build())
+                        .toList();
+
+        return ConversationResponse.builder()
+                .id(conversation.getId())
+                .title(conversation.getTitle())
+                .status(conversation.getStatus())
+                .createdAt(conversation.getCreatedAt())
+                .messages(messages)
+                .build();
     }
 }

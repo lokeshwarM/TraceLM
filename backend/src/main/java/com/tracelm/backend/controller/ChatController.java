@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
+import java.util.UUID;
+import com.tracelm.backend.dto.ConversationResponse;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -24,5 +27,15 @@ public class ChatController {
         return Map.of(
                 "response", response
         );
+    }
+
+    @GetMapping("/conversations")
+    public List<ConversationResponse> getAllConversations() {
+        return conversationService.getAllConversations();
+    }
+
+    @GetMapping("/conversations/{id}")
+    public ConversationResponse getConversation(@PathVariable UUID id) {
+        return conversationService.getConversation(id);
     }
 }
