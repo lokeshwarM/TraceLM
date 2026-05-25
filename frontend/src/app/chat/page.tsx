@@ -140,22 +140,24 @@ export default function ChatPage() {
     const startMs = Date.now();
 
     try {
-      const modelToSend = compareMode ? (selectedModels.length > 0 ? selectedModels[0] : 'gemini-3.1-flash-lite') : selectedModel;
-      const chatResponse = await sendMessage(promptToSend, activeConversationId, modelToSend);
+      const modelOrModelsToSend = compareMode && selectedModels.length > 0 ? selectedModels : selectedModel;
+      const chatResponses = await sendMessage(promptToSend, activeConversationId, modelOrModelsToSend);
       const latencyMs = Date.now() - startMs;
-      const assistantMessage: Message = { 
+      
+      const assistantMessages: Message[] = chatResponses.map(res => ({
         role: "ASSISTANT", 
-        content: chatResponse.response,
+        content: res.response,
         createdAt: new Date().toISOString(),
-        outputTokens: Math.ceil(chatResponse.response.length / 4),
+        outputTokens: Math.ceil(res.response.length / 4),
         latencyMs: latencyMs,
-        model: chatResponse.model || modelToSend
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+        model: res.model || (Array.isArray(modelOrModelsToSend) ? modelOrModelsToSend[0] : modelOrModelsToSend)
+      }));
+      
+      setMessages(prev => [...prev, ...assistantMessages]);
 
-      const targetId = chatResponse.conversationId || activeConversationId;
-      if (!activeConversationId && chatResponse.conversationId) {
-        setActiveConversationId(chatResponse.conversationId);
+      const targetId = chatResponses[0].conversationId || activeConversationId;
+      if (!activeConversationId && chatResponses[0].conversationId) {
+        setActiveConversationId(chatResponses[0].conversationId);
       }
 
       if (targetId) {
@@ -263,7 +265,7 @@ export default function ChatPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-800/40 text-[11px]">
                     {inferenceLogs.map((log) => (
-                      <tr key={log.createdAt} className="hover:bg-[#1a1d27] transition-colors group">
+                      <tr key={`${log.createdAt}-${log.model}`} className="hover:bg-[#1a1d27] transition-colors group">
                         <td className="px-4 py-2.5 whitespace-nowrap text-gray-500">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
                         <td className="px-4 py-2.5 font-medium text-gray-300">{log.provider}</td>
                         <td className="px-4 py-2.5 text-blue-400/80 font-mono">{log.model}</td>

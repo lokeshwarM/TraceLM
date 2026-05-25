@@ -95,6 +95,78 @@ public class ConversationService {
         );
     }
 
+    public List<Map<String, String>> processMessages(String prompt, UUID conversationId, List<String> models) {
+        Conversation conversation;
+        if (conversationId != null) {
+            conversation = conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        } else {
+            conversation = Conversation.builder()
+                    .title(prompt.substring(0, Math.min(prompt.length(), 30)))
+                    .status("ACTIVE")
+                    .build();
+            conversationRepository.save(conversation);
+        }
+
+        Message userMessage = Message.builder()
+                .conversation(conversation)
+                .role("USER")
+                .content(prompt)
+                .build();
+        messageRepository.save(userMessage);
+
+        return Flux.fromIterable(models)
+                .flatMap(model -> reactor.core.publisher.Mono.fromCallable(() -> {
+                    long startTime = System.currentTimeMillis();
+                    LLMResponse response;
+                    try {
+                        response = llmProvider.generateResponse(prompt, model);
+                        long latency = System.currentTimeMillis() - startTime;
+                        loggingService.logInference(
+                                conversation.getId(),
+                                response.getProvider(),
+                                response.getModel(),
+                                latency,
+                                response.getInputTokens(),
+                                response.getOutputTokens(),
+                                "SUCCESS"
+                        );
+                    } catch (Exception e) {
+                        String fallbackModel = (model != null && !model.trim().isEmpty()) ? model : "gemini-3.1-flash-lite";
+                        loggingService.logInference(
+                                conversation.getId(),
+                                "Gemini",
+                                fallbackModel,
+                                0L,
+                                0,
+                                0,
+                                "FAILED"
+                        );
+                        response = LLMResponse.builder()
+                                .provider("Gemini")
+                                .model(fallbackModel)
+                                .content("Error generating response.")
+                                .build();
+                    }
+
+                    Message assistantMessage = Message.builder()
+                            .conversation(conversation)
+                            .role("ASSISTANT")
+                            .content(response.getContent())
+                            .build();
+
+                    messageRepository.save(assistantMessage);
+
+                    return Map.of(
+                            "response", response.getContent(),
+                            "conversationId", conversation.getId().toString(),
+                            "model", response.getModel()
+                    );
+                }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic()))
+                .collectList()
+                .block();
+    }
+
     public Flux<String> processMessageStream(String prompt, UUID conversationId, String model) {
 
         Conversation conversation;

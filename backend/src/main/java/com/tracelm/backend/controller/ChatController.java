@@ -21,26 +21,34 @@ public class ChatController {
     private final ConversationService conversationService;
 
     @PostMapping
-    public Map<String, Object> chat(@RequestBody Map<String, String> request) {
+    public Object chat(@RequestBody Map<String, Object> request) {
 
-        String prompt = request.get("prompt");
-        String conversationIdStr = request.get("conversationId");
-        String model = request.get("model");
+        String prompt = (String) request.get("prompt");
+        String conversationIdStr = (String) request.get("conversationId");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
 
+        if (request.containsKey("models")) {
+            List<String> models = (List<String>) request.get("models");
+            if (models != null && !models.isEmpty()) {
+                return conversationService.processMessages(prompt, conversationId, models);
+            }
+        }
+
+        String model = (String) request.get("model");
         Map<String, String> response = conversationService.processMessage(prompt, conversationId, model);
 
         return Map.of(
                 "response", response.get("response"),
-                "conversationId", response.get("conversationId")
+                "conversationId", response.get("conversationId"),
+                "model", response.getOrDefault("model", model)
         );
     }
 
     @PostMapping(value = "/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> chatStream(@RequestBody Map<String, String> request) {
-        String prompt = request.get("prompt");
-        String conversationIdStr = request.get("conversationId");
-        String model = request.get("model");
+    public Flux<ServerSentEvent<String>> chatStream(@RequestBody Map<String, Object> request) {
+        String prompt = (String) request.get("prompt");
+        String conversationIdStr = (String) request.get("conversationId");
+        String model = (String) request.get("model");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
         return conversationService.processMessageStream(prompt, conversationId, model)
                 .map(chunk -> ServerSentEvent.<String>builder(chunk).build());

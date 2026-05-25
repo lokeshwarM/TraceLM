@@ -32,8 +32,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return response.json();
 }
 
-export async function sendMessage(prompt: string, conversationId: string | null = null, model: string = 'gemini-3.1-flash-lite'): Promise<ChatResponse> {
-    const body: Record<string, string> = { prompt, model };
+export async function sendMessage(prompt: string, conversationId: string | null = null, modelOrModels: string | string[] = 'gemini-3.1-flash-lite'): Promise<ChatResponse[]> {
+    const body: Record<string, any> = { prompt };
+    
+    if (Array.isArray(modelOrModels)) {
+        body.models = modelOrModels;
+        if (modelOrModels.length === 1) {
+            body.model = modelOrModels[0];
+        }
+    } else {
+        body.model = modelOrModels;
+    }
+    
     if (conversationId) {
         body.conversationId = conversationId;
     }
@@ -46,7 +56,8 @@ export async function sendMessage(prompt: string, conversationId: string | null 
         body: JSON.stringify(body),
     });
 
-    return handleResponse<ChatResponse>(response);
+    const data = await handleResponse<any>(response);
+    return Array.isArray(data) ? data : [data];
 }
 
 export async function getConversations(): Promise<ConversationResponse[]> {
