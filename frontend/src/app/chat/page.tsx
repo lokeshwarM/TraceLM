@@ -14,6 +14,8 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ConversationResponse[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-flash-lite');
+  const [selectedModels, setSelectedModels] = useState<string[]>(['gemini-3.1-flash-lite']);
+  const [compareMode, setCompareMode] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ConversationMetricsResponse | null>(null);
@@ -138,7 +140,8 @@ export default function ChatPage() {
     const startMs = Date.now();
 
     try {
-      const chatResponse = await sendMessage(promptToSend, activeConversationId, selectedModel);
+      const modelToSend = compareMode ? (selectedModels.length > 0 ? selectedModels[0] : 'gemini-3.1-flash-lite') : selectedModel;
+      const chatResponse = await sendMessage(promptToSend, activeConversationId, modelToSend);
       const latencyMs = Date.now() - startMs;
       const assistantMessage: Message = { 
         role: "ASSISTANT", 
@@ -146,7 +149,7 @@ export default function ChatPage() {
         createdAt: new Date().toISOString(),
         outputTokens: Math.ceil(chatResponse.response.length / 4),
         latencyMs: latencyMs,
-        model: chatResponse.model || selectedModel
+        model: chatResponse.model || modelToSend
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -287,6 +290,10 @@ export default function ChatPage() {
             handleSubmit={handleSubmit}
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
+            selectedModels={selectedModels}
+            setSelectedModels={setSelectedModels}
+            compareMode={compareMode}
+            setCompareMode={setCompareMode}
           />
         </main>
       </div>
