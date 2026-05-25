@@ -13,12 +13,14 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<ConversationResponse[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-flash-lite');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ConversationMetricsResponse | null>(null);
   const [inferenceLogs, setInferenceLogs] = useState<InferenceLogResponse[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'error') => {
     setToast({ message, type });
@@ -27,6 +29,12 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = 0;
+    }
+  }, [inferenceLogs]);
 
   useEffect(() => {
     loadConversations();
@@ -62,14 +70,26 @@ export default function ChatPage() {
       ]);
       
       console.log('[DEBUG] Conversation Data:', !!data, 'Metrics Data:', metricsData, 'Logs:', logsData?.length);
+      
+      const sortedLogs = [...(logsData || [])].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      let logIndex = 0;
+
       if (data.messages) {
-        setMessages(data.messages.map((m: any) => ({ 
-          role: m.role as "USER" | "ASSISTANT", 
-          content: m.content,
-          createdAt: m.createdAt,
-          inputTokens: m.role === 'USER' ? Math.ceil(m.content.length / 4) : undefined,
-          outputTokens: m.role === 'ASSISTANT' ? Math.ceil(m.content.length / 4) : undefined
-        })));
+        setMessages(data.messages.map((m: any) => {
+          let log = null;
+          if (m.role === 'ASSISTANT' && logIndex < sortedLogs.length) {
+            log = sortedLogs[logIndex++];
+          }
+          return {
+            role: m.role as "USER" | "ASSISTANT", 
+            content: m.content,
+            createdAt: m.createdAt,
+            inputTokens: m.role === 'USER' ? Math.ceil(m.content.length / 4) : undefined,
+            outputTokens: m.role === 'ASSISTANT' ? (log ? log.outputTokens : Math.ceil(m.content.length / 4)) : undefined,
+            latencyMs: log ? log.latencyMs : undefined,
+            model: log ? log.model : undefined
+          };
+        }));
       } else {
         setMessages([]);
       }
@@ -118,14 +138,15 @@ export default function ChatPage() {
     const startMs = Date.now();
 
     try {
-      const chatResponse = await sendMessage(promptToSend, activeConversationId);
+      const chatResponse = await sendMessage(promptToSend, activeConversationId, selectedModel);
       const latencyMs = Date.now() - startMs;
       const assistantMessage: Message = { 
         role: "ASSISTANT", 
         content: chatResponse.response,
         createdAt: new Date().toISOString(),
         outputTokens: Math.ceil(chatResponse.response.length / 4),
-        latencyMs: latencyMs
+        latencyMs: latencyMs,
+        model: chatResponse.model || selectedModel
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -217,14 +238,17 @@ export default function ChatPage() {
           />
 
           {inferenceLogs && inferenceLogs.length > 0 && (
-            <div className="max-h-48 overflow-y-auto shrink-0 mb-4 bg-[#161921] border border-gray-800/60 rounded-2xl shadow-xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-              <div className="sticky top-0 px-5 py-2.5 border-b border-gray-800/60 bg-[#1a1d27]/95 backdrop-blur z-10 flex justify-between items-center">
+            <div 
+              ref={logsContainerRef}
+              className="max-h-48 overflow-auto shrink-0 mb-4 bg-[#161921] border border-gray-800/60 rounded-2xl shadow-xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+              style={{ overflowAnchor: 'none' }}
+            >
+              <div className="sticky top-0 h-10 px-5 border-b border-gray-800/60 bg-[#1a1d27]/95 backdrop-blur z-20 flex justify-between items-center min-w-max">
                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Raw Inference Traces</h3>
                 <span className="text-[10px] text-gray-500 bg-gray-800/50 px-2 py-0.5 rounded-full">{inferenceLogs.length} logs</span>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-400">
-                  <thead className="text-[10px] text-gray-500 uppercase bg-[#13151b] border-b border-gray-800/60 sticky top-10 z-10">
+              <table className="w-full text-left text-sm text-gray-400 min-w-max">
+                <thead className="text-[10px] text-gray-500 uppercase bg-[#13151b] border-b border-gray-800/60 sticky top-10 z-10">
                     <tr>
                       <th className="px-4 py-2.5 font-semibold">Timestamp</th>
                       <th className="px-4 py-2.5 font-semibold">Provider</th>
@@ -235,8 +259,8 @@ export default function ChatPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/40 text-[11px]">
-                    {inferenceLogs.map((log, idx) => (
-                      <tr key={idx} className="hover:bg-[#1a1d27] transition-colors group">
+                    {inferenceLogs.map((log) => (
+                      <tr key={log.createdAt} className="hover:bg-[#1a1d27] transition-colors group">
                         <td className="px-4 py-2.5 whitespace-nowrap text-gray-500">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
                         <td className="px-4 py-2.5 font-medium text-gray-300">{log.provider}</td>
                         <td className="px-4 py-2.5 text-blue-400/80 font-mono">{log.model}</td>
@@ -253,7 +277,6 @@ export default function ChatPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
             </div>
           )}
 
@@ -262,6 +285,8 @@ export default function ChatPage() {
             setPrompt={setPrompt}
             isLoading={isLoading}
             handleSubmit={handleSubmit}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
           />
         </main>
       </div>

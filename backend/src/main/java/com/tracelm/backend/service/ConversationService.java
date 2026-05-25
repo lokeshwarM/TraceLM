@@ -29,7 +29,7 @@ public class ConversationService {
     private final GeminiProvider llmProvider;
     private final LoggingService loggingService;
 
-    public Map<String, String> processMessage(String prompt, UUID conversationId) {
+    public Map<String, String> processMessage(String prompt, UUID conversationId, String model) {
 
         Conversation conversation;
         if (conversationId != null) {
@@ -54,7 +54,7 @@ public class ConversationService {
         long startTime = System.currentTimeMillis();
         LLMResponse response;
         try {
-            response = llmProvider.generateResponse(prompt);
+            response = llmProvider.generateResponse(prompt, model);
             long latency = System.currentTimeMillis() - startTime;
 
             loggingService.logInference(
@@ -67,10 +67,11 @@ public class ConversationService {
                     "SUCCESS"
             );
         } catch (Exception e) {
+            String fallbackModel = (model != null && !model.trim().isEmpty()) ? model : "gemini-3.1-flash-lite";
             loggingService.logInference(
                     conversation.getId(),
                     "Gemini",
-                    "gemini-flash-latest",
+                    fallbackModel,
                     0L,
                     0,
                     0,
@@ -89,11 +90,12 @@ public class ConversationService {
 
         return java.util.Map.of(
                 "response", response.getContent(),
-                "conversationId", conversation.getId().toString()
+                "conversationId", conversation.getId().toString(),
+                "model", response.getModel()
         );
     }
 
-    public Flux<String> processMessageStream(String prompt, UUID conversationId) {
+    public Flux<String> processMessageStream(String prompt, UUID conversationId, String model) {
 
         Conversation conversation;
         if (conversationId != null) {
@@ -118,14 +120,16 @@ public class ConversationService {
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
 
-        return llmProvider.generateStreamResponse(prompt)
+        String selectedModel = normalizeModel(model);
+
+        return llmProvider.generateStreamResponse(prompt, model)
                 .doOnNext(chunk -> fullResponse.append(chunk))
                 .doOnComplete(() -> {
                     long latency = System.currentTimeMillis() - startTime;
                     loggingService.logInference(
                             conversation.getId(),
                             "Gemini",
-                            "gemini-flash-latest",
+                            selectedModel,
                             latency,
                             0,
                             0,
@@ -144,7 +148,7 @@ public class ConversationService {
                     loggingService.logInference(
                             conversation.getId(),
                             "Gemini",
-                            "gemini-flash-latest",
+                            selectedModel,
                             0L,
                             0,
                             0,
@@ -224,5 +228,21 @@ public class ConversationService {
                         .createdAt(log.getCreatedAt())
                         .build())
                 .toList();
+    }
+
+    private String normalizeModel(String requestedModel) {
+        if (requestedModel == null || requestedModel.trim().isEmpty()) {
+            return "gemini-3.1-flash-lite";
+        }
+        switch (requestedModel.toLowerCase()) {
+            case "gemma-4-26b":
+                return "gemma-4-26b-a4b-it";
+            case "gemma-4-31b":
+                return "gemma-4-31b-it";
+            case "gemini-3.1-flash-lite":
+                return "gemini-3.1-flash-lite";
+            default:
+                return "gemini-3.1-flash-lite";
+        }
     }
 }

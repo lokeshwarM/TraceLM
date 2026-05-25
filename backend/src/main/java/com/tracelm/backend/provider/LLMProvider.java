@@ -5,9 +5,9 @@ import reactor.core.publisher.Flux;
 
 public interface LLMProvider {
     
-    LLMResponse generateResponse(String prompt);
+    LLMResponse generateResponse(String prompt, String model);
 
-    default Flux<String> generateStreamResponse(String prompt) {
+    default Flux<String> generateStreamResponse(String prompt, String model) {
         throw new UnsupportedOperationException("Streaming not implemented");
     }
 }

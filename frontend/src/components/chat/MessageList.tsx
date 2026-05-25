@@ -8,6 +8,7 @@ export interface Message {
   inputTokens?: number;
   outputTokens?: number;
   latencyMs?: number;
+  model?: string;
 }
 
 interface MessageListProps {
@@ -82,9 +83,13 @@ export function MessageList({ messages, isLoading, error, messagesEndRef, onRetr
                     <span>{msg.inputTokens} IN_TOKENS</span>
                   </>
                 )}
-                {msg.role === 'ASSISTANT' && (msg.outputTokens || msg.latencyMs) && (
+                {msg.role === 'ASSISTANT' && (msg.outputTokens || msg.latencyMs || msg.model) && (
                   <>
                     <span>•</span>
+                    {msg.model && (
+                      <span className="text-blue-400 font-mono tracking-tight">{msg.model}</span>
+                    )}
+                    {msg.model && (msg.outputTokens || msg.latencyMs) && <span className="mx-0.5">•</span>}
                     {msg.outputTokens && <span>{msg.outputTokens} OUT_TOKENS</span>}
                     {msg.latencyMs && <span>({(msg.latencyMs / 1000).toFixed(2)}s)</span>}
                   </>

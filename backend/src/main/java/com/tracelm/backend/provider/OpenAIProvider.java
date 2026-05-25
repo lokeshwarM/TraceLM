@@ -25,12 +25,14 @@ public class OpenAIProvider implements LLMProvider {
 
     @SuppressWarnings("unchecked")
     @Override
-    public LLMResponse generateResponse(String prompt) {
+    public LLMResponse generateResponse(String prompt, String model) {
 
         WebClient webClient = webClientBuilder.build();
 
+        String selectedModel = (model != null && !model.trim().isEmpty()) ? model : this.model;
+
         Map<String, Object> requestBody = Map.of(
-                "model", model,
+                "model", selectedModel,
                 "messages", List.of(
                         Map.of(
                                 "role", "user",
@@ -80,7 +82,7 @@ public class OpenAIProvider implements LLMProvider {
                 .content(aiText)
                 .inputTokens(promptTokens)
                 .outputTokens(outputTokens)
-                .model(model)
+                .model(selectedModel)
                 .provider("OpenAI")
                 .build();
     }

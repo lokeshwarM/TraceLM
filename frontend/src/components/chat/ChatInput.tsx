@@ -5,9 +5,11 @@ interface ChatInputProps {
   setPrompt: (val: string) => void;
   isLoading: boolean;
   handleSubmit: (e?: React.FormEvent) => void;
+  selectedModel: string;
+  setSelectedModel: (val: string) => void;
 }
 
-export function ChatInput({ prompt, setPrompt, isLoading, handleSubmit }: ChatInputProps) {
+export function ChatInput({ prompt, setPrompt, isLoading, handleSubmit, selectedModel, setSelectedModel }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -16,8 +18,21 @@ export function ChatInput({ prompt, setPrompt, isLoading, handleSubmit }: ChatIn
   };
 
   return (
-    <div className="shrink-0 relative group w-full">
-      <form onSubmit={handleSubmit} className="w-full">
+    <div className="shrink-0 relative group w-full flex flex-col gap-2">
+      <div className="flex justify-start">
+        <select 
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
+          disabled={isLoading}
+          className="bg-[#161921] border border-gray-800/60 text-gray-400 text-xs font-medium rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 hover:bg-[#1a1d27] transition-colors cursor-pointer appearance-none pr-8 relative"
+          style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%239ca3af\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1em' }}
+        >
+          <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+          <option value="gemma-4-26b">Gemma 4 26B</option>
+          <option value="gemma-4-31b">Gemma 4 31B</option>
+        </select>
+      </div>
+      <form onSubmit={handleSubmit} className="w-full relative">
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}

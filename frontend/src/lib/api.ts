@@ -32,15 +32,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return response.json();
 }
 
-export async function sendMessage(prompt: string, conversationId?: string | null): Promise<ChatResponse> {
-    const request: ChatRequest = { prompt, conversationId };
+export async function sendMessage(prompt: string, conversationId: string | null = null, model: string = 'gemini-3.1-flash-lite'): Promise<ChatResponse> {
+    const body: Record<string, string> = { prompt, model };
+    if (conversationId) {
+        body.conversationId = conversationId;
+    }
 
-    const response = await fetchWithTimeout(BASE_URL, {
+    const response = await fetchWithTimeout(`${BASE_URL}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(body),
     });
 
     return handleResponse<ChatResponse>(response);

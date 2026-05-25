@@ -25,9 +25,10 @@ public class ChatController {
 
         String prompt = request.get("prompt");
         String conversationIdStr = request.get("conversationId");
+        String model = request.get("model");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
 
-        Map<String, String> response = conversationService.processMessage(prompt, conversationId);
+        Map<String, String> response = conversationService.processMessage(prompt, conversationId, model);
 
         return Map.of(
                 "response", response.get("response"),
@@ -39,8 +40,9 @@ public class ChatController {
     public Flux<ServerSentEvent<String>> chatStream(@RequestBody Map<String, String> request) {
         String prompt = request.get("prompt");
         String conversationIdStr = request.get("conversationId");
+        String model = request.get("model");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
-        return conversationService.processMessageStream(prompt, conversationId)
+        return conversationService.processMessageStream(prompt, conversationId, model)
                 .map(chunk -> ServerSentEvent.<String>builder(chunk).build());
     }
 

@@ -22,17 +22,35 @@ public class GeminiProvider implements LLMProvider {
     @Value("${gemini.api-key}")
     private String apiKey;
 
-    @Value("${gemini.url}")
-    private String apiUrl;
+    @Value("${gemini.base-url}")
+    private String baseUrl;
 
-    @Value("${gemini.model}")
-    private String model;
+    @Value("${gemini.default-model}")
+    private String defaultModel;
+
+    private String normalizeModelId(String requestedModel) {
+        if (requestedModel == null || requestedModel.trim().isEmpty()) {
+            return this.defaultModel;
+        }
+        
+        switch (requestedModel.toLowerCase()) {
+            case "gemma-4-26b":
+                return "gemma-4-26b-a4b-it";
+            case "gemma-4-31b":
+                return "gemma-4-31b-it";
+            case "gemini-3.1-flash-lite":
+                return "gemini-3.1-flash-lite";
+            default:
+                return this.defaultModel;
+        }
+    }
 
     @SuppressWarnings("unchecked")
     @Override
-    public LLMResponse generateResponse(String prompt) {
+    public LLMResponse generateResponse(String prompt, String model) {
 
         WebClient webClient = webClientBuilder.build();
+        String selectedModel = normalizeModelId(model);
 
         Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
@@ -46,7 +64,7 @@ public class GeminiProvider implements LLMProvider {
                 )
         );
 
-        String url = String.format("%s?key=%s", apiUrl, apiKey);
+        String url = String.format("%s/%s:generateContent?key=%s", baseUrl.replaceAll("/$", ""), selectedModel, apiKey);
 
         Map<String, Object> response = webClient.post()
                 .uri(url)
@@ -93,15 +111,16 @@ public class GeminiProvider implements LLMProvider {
                 .content(aiText)
                 .inputTokens(promptTokens)
                 .outputTokens(outputTokens)
-                .model(model)
+                .model(selectedModel)
                 .provider("Gemini")
                 .build();
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public Flux<String> generateStreamResponse(String prompt) {
+    public Flux<String> generateStreamResponse(String prompt, String model) {
         WebClient webClient = webClientBuilder.build();
+        String selectedModel = normalizeModelId(model);
 
         Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
@@ -115,9 +134,8 @@ public class GeminiProvider implements LLMProvider {
                 )
         );
 
-        // Gemini streaming endpoint uses :streamGenerateContent?alt=sse
-        String streamUrl = String.format("%s?key=%s&alt=sse",
-                apiUrl.replace(":generateContent", ":streamGenerateContent"), apiKey);
+        String streamUrl = String.format("%s/%s:streamGenerateContent?key=%s&alt=sse", 
+                baseUrl.replaceAll("/$", ""), selectedModel, apiKey);
 
         return webClient.post()
                 .uri(streamUrl)
