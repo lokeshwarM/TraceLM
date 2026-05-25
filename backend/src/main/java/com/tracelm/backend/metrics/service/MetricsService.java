@@ -35,4 +35,22 @@ public class MetricsService {
                 .successRate(Math.round(successRate * 100.0) / 100.0)
                 .build();
     }
+
+    public com.tracelm.backend.metrics.dto.ProviderAnalyticsResponse getProviders() {
+        var providers = inferenceLogRepository.getProviderUsage().stream()
+                .map(p -> new com.tracelm.backend.metrics.dto.ProviderUsageResponse(p.getName(), p.getCount()))
+                .toList();
+        var models = inferenceLogRepository.getModelUsage().stream()
+                .map(m -> new com.tracelm.backend.metrics.dto.ProviderUsageResponse(m.getName(), m.getCount()))
+                .toList();
+        return new com.tracelm.backend.metrics.dto.ProviderAnalyticsResponse(providers, models);
+    }
+
+    public java.util.List<com.tracelm.backend.metrics.dto.LatencyTrendResponse> getLatency() {
+        return inferenceLogRepository.getLatencyTrendByDate().stream()
+                .map(l -> new com.tracelm.backend.metrics.dto.LatencyTrendResponse(
+                        l.getTimestamp().toString(),
+                        Math.round(l.getAvgLatency() * 100.0) / 100.0))
+                .toList();
+    }
 }

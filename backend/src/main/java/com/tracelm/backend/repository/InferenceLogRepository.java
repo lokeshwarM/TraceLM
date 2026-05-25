@@ -35,4 +35,23 @@ public interface InferenceLogRepository extends JpaRepository<InferenceLog, UUID
     InferenceMetricsProjection getConversationMetrics(@Param("conversationId") UUID conversationId);
 
     java.util.List<InferenceLog> findByConversationIdOrderByCreatedAtDesc(UUID conversationId);
+
+    interface ProviderUsageProjection {
+        String getName();
+        Long getCount();
+    }
+
+    @Query("SELECT i.provider as name, COUNT(i) as count FROM InferenceLog i GROUP BY i.provider")
+    java.util.List<ProviderUsageProjection> getProviderUsage();
+
+    @Query("SELECT i.model as name, COUNT(i) as count FROM InferenceLog i GROUP BY i.model")
+    java.util.List<ProviderUsageProjection> getModelUsage();
+
+    interface LatencyTrendProjection {
+        java.util.Date getTimestamp();
+        Double getAvgLatency();
+    }
+
+    @Query("SELECT cast(i.createdAt as date) as timestamp, AVG(i.latencyMs) as avgLatency FROM InferenceLog i GROUP BY cast(i.createdAt as date) ORDER BY cast(i.createdAt as date) ASC")
+    java.util.List<LatencyTrendProjection> getLatencyTrendByDate();
 }

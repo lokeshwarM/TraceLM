@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getMetricsOverview, getConversations } from '@/lib/api';
-import { MetricsOverviewResponse, ConversationResponse } from '@/lib/types';
+import { getMetricsOverview, getConversations, getProviderAnalytics, getLatencyTrend } from '@/lib/api';
+import { MetricsOverviewResponse, ConversationResponse, ProviderAnalyticsResponse, LatencyTrendResponse } from '@/lib/types';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { useRouter } from 'next/navigation';
@@ -10,6 +11,8 @@ import { useRouter } from 'next/navigation';
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<MetricsOverviewResponse | null>(null);
   const [conversations, setConversations] = useState<ConversationResponse[]>([]);
+  const [providers, setProviders] = useState<ProviderAnalyticsResponse | null>(null);
+  const [latencyTrend, setLatencyTrend] = useState<LatencyTrendResponse[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -22,12 +25,16 @@ export default function DashboardPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const [metricsData, convsData] = await Promise.all([
+      const [metricsData, convsData, providerData, latencyData] = await Promise.all([
         getMetricsOverview(),
-        getConversations()
+        getConversations(),
+        getProviderAnalytics().catch(() => null),
+        getLatencyTrend().catch(() => null)
       ]);
       setMetrics(metricsData);
       setConversations(convsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setProviders(providerData);
+      setLatencyTrend(latencyData);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message || 'Failed to load dashboard data.');
@@ -98,6 +105,58 @@ export default function DashboardPage() {
               />
             </div>
           ) : null}
+          
+          {metrics && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+              <div className="bg-[#161921] border border-gray-800/60 rounded-2xl p-6 shadow-sm flex flex-col">
+                <h3 className="text-lg font-semibold text-gray-200 mb-6 tracking-tight">Latency Trend</h3>
+                {latencyTrend && latencyTrend.length > 0 ? (
+                  <div className="flex-1 min-h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={latencyTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" vertical={false} />
+                        <XAxis dataKey="timestamp" stroke="#718096" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} />
+                        <YAxis stroke="#718096" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}ms`} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a202c', borderColor: '#2d3748', borderRadius: '8px' }} 
+                          itemStyle={{ color: '#e2e8f0', fontSize: '12px', fontWeight: 500 }}
+                          labelStyle={{ color: '#718096', fontSize: '11px', marginBottom: '4px' }}
+                          labelFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}
+                        />
+                        <Line type="monotone" dataKey="avgLatency" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }} activeDot={{ r: 6, stroke: '#60a5fa', strokeWidth: 2 }} animationDuration={1000} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center min-h-[250px] text-gray-500/70 text-sm font-medium border border-dashed border-gray-800/60 rounded-xl">No latency data available</div>
+                )}
+              </div>
+
+              <div className="bg-[#161921] border border-gray-800/60 rounded-2xl p-6 shadow-sm flex flex-col">
+                <h3 className="text-lg font-semibold text-gray-200 mb-6 tracking-tight">Provider Usage</h3>
+                {providers && providers.providers.length > 0 ? (
+                  <div className="flex-1 min-h-[250px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={providers.providers} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" vertical={false} />
+                        <XAxis dataKey="name" stroke="#718096" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#718096" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#1a202c', borderColor: '#2d3748', borderRadius: '8px' }} 
+                          itemStyle={{ color: '#e2e8f0', fontSize: '12px', fontWeight: 500 }}
+                          labelStyle={{ color: '#718096', fontSize: '11px', marginBottom: '4px' }}
+                          cursor={{ fill: '#2d3748', opacity: 0.4 }}
+                        />
+                        <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} animationDuration={1000} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center min-h-[250px] text-gray-500/70 text-sm font-medium border border-dashed border-gray-800/60 rounded-xl">No provider data available</div>
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

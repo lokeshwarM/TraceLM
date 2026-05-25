@@ -20,4 +20,14 @@ public class MetricsController {
     public MetricsOverviewResponse getOverview() {
         return metricsService.getOverview();
     }
+
+    @GetMapping("/providers")
+    public com.tracelm.backend.metrics.dto.ProviderAnalyticsResponse getProviders() {
+        return metricsService.getProviders();
+    }
+
+    @GetMapping("/latency")
+    public java.util.List<com.tracelm.backend.metrics.dto.LatencyTrendResponse> getLatency() {
+        return metricsService.getLatency();
+    }
 }

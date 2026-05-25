@@ -101,3 +101,27 @@ export async function getConversationLogs(id: string): Promise<import('./types')
 
     return handleResponse<import('./types').InferenceLogResponse[]>(response);
 }
+
+export async function getProviderAnalytics(): Promise<import('./types').ProviderAnalyticsResponse> {
+    const baseUrlFormatted = BASE_URL.replace(/\/chat\/?$/, '');
+    const response = await fetchWithTimeout(`${baseUrlFormatted}/metrics/providers`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    return handleResponse<import('./types').ProviderAnalyticsResponse>(response);
+}
+
+export async function getLatencyTrend(): Promise<import('./types').LatencyTrendResponse[]> {
+    const baseUrlFormatted = BASE_URL.replace(/\/chat\/?$/, '');
+    const response = await fetchWithTimeout(`${baseUrlFormatted}/metrics/latency`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    return handleResponse<import('./types').LatencyTrendResponse[]>(response);
+}

@@ -49,3 +49,18 @@ export interface InferenceLogResponse {
     status: string;
     createdAt: string;
 }
+
+export interface ProviderUsageResponse {
+    name: string;
+    count: number;
+}
+
+export interface ProviderAnalyticsResponse {
+    providers: ProviderUsageResponse[];
+    models: ProviderUsageResponse[];
+}
+
+export interface LatencyTrendResponse {
+    timestamp: string;
+    avgLatency: number;
+}
