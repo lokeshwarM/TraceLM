@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import { normalizeResponse } from '@/lib/responseNormalizer';
+import { CompareResponseGrid } from './CompareResponseGrid';
 
 export interface CompareResponse {
   model: string;
@@ -54,77 +56,9 @@ export function MessageList({ messages, isLoading, error, messagesEndRef, loadin
         <div className="flex flex-col gap-4">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex w-full flex-col ${msg.role === 'USER' ? 'items-end' : 'items-start'}`}>
-              <div className={`${msg.role === 'USER' ? 'max-w-[70%]' : (msg.type === 'compare' ? 'w-full xl:max-w-[85%]' : 'max-w-[80%]')} rounded-2xl p-4 ${msg.role === 'USER' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[#1a1d27] border border-gray-700/50 text-gray-200 rounded-bl-none shadow-sm'}`}>
+              <div className={`${msg.role === 'USER' ? 'max-w-[70%] rounded-2xl p-4 bg-blue-600 text-white rounded-br-none' : (msg.type === 'compare' ? 'w-full' : 'max-w-[80%] rounded-2xl p-4 bg-[#1a1d27] border border-gray-700/50 text-gray-200 rounded-bl-none shadow-sm')}`}>
                 {msg.type === 'compare' && msg.responses ? (
-                  <div className="flex flex-col gap-6">
-                    {msg.responses.map((resp, i) => (
-                      <div key={i} className="flex flex-col border-b border-gray-800/80 pb-6 last:border-0 last:pb-0">
-                        <div className="flex items-center space-x-2 mb-3">
-                          <span className="text-sm text-blue-400 font-mono font-medium tracking-tight bg-blue-500/10 px-2.5 py-1 rounded-md">{resp.model}</span>
-                          {resp.status === 'SUCCESS' && (
-                            <span className="text-[10px] text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full font-semibold tracking-wide">SUCCESS</span>
-                          )}
-                          {resp.status === 'FAILED' && (
-                            <span className="text-[10px] text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-0.5 rounded-full font-semibold tracking-wide">FAILED</span>
-                          )}
-                          {resp.status === 'STREAMING' && (
-                            <span className="text-[10px] text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full font-semibold tracking-wide animate-pulse">STREAMING</span>
-                          )}
-                        </div>
-                        <div className="text-sm leading-relaxed text-gray-200">
-                          <ReactMarkdown
-                            components={{
-                              h1: ({ node, ...props }) => <h1 className="text-2xl font-bold mt-4 mb-2 text-white" {...props} />,
-                              h2: ({ node, ...props }) => <h2 className="text-xl font-bold mt-4 mb-2 text-white" {...props} />,
-                              h3: ({ node, ...props }) => <h3 className="text-lg font-bold mt-3 mb-2 text-white" {...props} />,
-                              p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />,
-                              ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
-                              ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
-                              li: ({ node, ...props }) => <li className="pl-1" {...props} />,
-                              strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
-                              code: ({ node, className, children, ...props }: any) => {
-                                const isInline = !String(children).includes('\n');
-                                if (isInline) {
-                                  return <code className="bg-[#0f1115] px-1.5 py-0.5 rounded text-blue-300 font-mono text-[0.8em]" {...props}>{children}</code>;
-                                }
-                                return (
-                                  <div className="bg-[#0f1115] rounded-xl p-4 overflow-x-auto my-3 border border-gray-700/50 shadow-inner">
-                                    <code className="font-mono text-[0.85em] text-gray-300 leading-normal" {...props}>
-                                      {children}
-                                    </code>
-                                  </div>
-                                );
-                              },
-                              a: ({ node, ...props }) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-2" {...props} target="_blank" rel="noopener noreferrer" />
-                            }}
-                          >
-                            {resp.content || ''}
-                          </ReactMarkdown>
-                        </div>
-                        <div className="flex items-center space-x-2 mt-3 text-[11px] text-gray-500 font-medium">
-                          {resp.createdAt && <span>{new Date(resp.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
-                          {resp.inputTokens !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span>{resp.inputTokens} IN_TOKENS</span>
-                            </>
-                          )}
-                          {resp.outputTokens !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span>{resp.outputTokens} OUT_TOKENS</span>
-                            </>
-                          )}
-                          {resp.latencyMs !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span>{(resp.latencyMs / 1000).toFixed(2)}s</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <CompareResponseGrid responses={msg.responses} loadingModels={loadingModels} />
                 ) : msg.role === 'ASSISTANT' ? (
                   <div className="text-sm leading-relaxed">
                     <ReactMarkdown
@@ -153,7 +87,7 @@ export function MessageList({ messages, isLoading, error, messagesEndRef, loadin
                         a: ({ node, ...props }) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-2" {...props} target="_blank" rel="noopener noreferrer" />
                       }}
                     >
-                      {msg.content || ''}
+                      {normalizeResponse(msg.content || '')}
                     </ReactMarkdown>
                   </div>
                 ) : (
