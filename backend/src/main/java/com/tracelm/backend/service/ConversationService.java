@@ -229,6 +229,69 @@ public class ConversationService {
                 });
     }
 
+    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models) {
+        Conversation conversation;
+        if (conversationId != null) {
+            conversation = conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        } else {
+            conversation = Conversation.builder()
+                    .title(prompt.substring(0, Math.min(prompt.length(), 30)))
+                    .status("ACTIVE")
+                    .build();
+            conversationRepository.save(conversation);
+        }
+
+        Message userMessage = Message.builder()
+                .conversation(conversation)
+                .role("USER")
+                .content(prompt)
+                .build();
+        messageRepository.save(userMessage);
+
+        return Flux.fromIterable(models)
+                .flatMap(model -> reactor.core.publisher.Mono.fromCallable(() -> {
+                    String selectedModel = normalizeModel(model);
+                    long startTime = System.currentTimeMillis();
+                    
+                    try {
+                        com.tracelm.backend.dto.LLMResponse response = llmProvider.generateResponse(prompt, model);
+                        long latency = System.currentTimeMillis() - startTime;
+
+                        loggingService.logInference(
+                                conversation.getId(), "Gemini", selectedModel, latency,
+                                response.getInputTokens(), response.getOutputTokens(), "SUCCESS"
+                        );
+
+                        Message assistantMessage = Message.builder()
+                                .conversation(conversation)
+                                .role("ASSISTANT")
+                                .content(response.getContent())
+                                .build();
+                        messageRepository.save(assistantMessage);
+
+                        return com.tracelm.backend.dto.CompareResponseChunk.builder()
+                                .model(selectedModel)
+                                .content(response.getContent())
+                                .latency(latency)
+                                .inputTokens(response.getInputTokens())
+                                .outputTokens(response.getOutputTokens())
+                                .status("SUCCESS")
+                                .build();
+                    } catch (Exception e) {
+                        loggingService.logInference(
+                                conversation.getId(), "Gemini", selectedModel, 0L, 0, 0, "FAILED"
+                        );
+                        return com.tracelm.backend.dto.CompareResponseChunk.builder()
+                                .model(selectedModel)
+                                .content("")
+                                .status("FAILED")
+                                .errorMessage(e.getMessage())
+                                .build();
+                    }
+                }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic()));
+    }
+
     public List<ConversationResponse> getAllConversations() {
         return conversationRepository.findAllByOrderByUpdatedAtDesc()
                 .stream()

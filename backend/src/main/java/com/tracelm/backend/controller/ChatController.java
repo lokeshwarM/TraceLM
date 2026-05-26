@@ -45,13 +45,22 @@ public class ChatController {
     }
 
     @PostMapping(value = "/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> chatStream(@RequestBody Map<String, Object> request) {
+    public Flux<ServerSentEvent<Object>> chatStream(@RequestBody Map<String, Object> request) {
         String prompt = (String) request.get("prompt");
         String conversationIdStr = (String) request.get("conversationId");
-        String model = (String) request.get("model");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
+        
+        if (request.containsKey("models")) {
+            List<String> models = (List<String>) request.get("models");
+            if (models != null && !models.isEmpty()) {
+                return conversationService.processCompareStream(prompt, conversationId, models)
+                        .map(chunk -> ServerSentEvent.<Object>builder(chunk).build());
+            }
+        }
+        
+        String model = (String) request.get("model");
         return conversationService.processMessageStream(prompt, conversationId, model)
-                .map(chunk -> ServerSentEvent.<String>builder(chunk).build());
+                .map(chunk -> ServerSentEvent.<Object>builder(chunk).build());
     }
 
     @GetMapping("/conversations")

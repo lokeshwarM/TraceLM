@@ -16,6 +16,7 @@ export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-flash-lite');
   const [selectedModels, setSelectedModels] = useState<string[]>(['gemini-3.1-flash-lite']);
   const [compareMode, setCompareMode] = useState<boolean>(false);
+  const [loadingModels, setLoadingModels] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ConversationMetricsResponse | null>(null);
@@ -117,6 +118,7 @@ export default function ChatPage() {
     setMetrics(null);
     setInferenceLogs([]);
     setPrompt('');
+    setLoadingModels([]);
   };
 
   const handleSubmit = async (e?: React.FormEvent, retryPrompt?: string) => {
@@ -140,42 +142,120 @@ export default function ChatPage() {
     const startMs = Date.now();
 
     try {
-      const modelOrModelsToSend = compareMode && selectedModels.length > 0 ? selectedModels : selectedModel;
-      const chatResponses = await sendMessage(promptToSend, activeConversationId, modelOrModelsToSend);
-      const latencyMs = Date.now() - startMs;
-      
-      const assistantMessages: Message[] = chatResponses.map(res => ({
-        role: "ASSISTANT", 
-        content: res.response,
-        createdAt: new Date().toISOString(),
-        outputTokens: Math.ceil(res.response.length / 4),
-        latencyMs: latencyMs,
-        model: res.model || (Array.isArray(modelOrModelsToSend) ? modelOrModelsToSend[0] : modelOrModelsToSend)
-      }));
-      
-      setMessages(prev => [...prev, ...assistantMessages]);
+      if (compareMode && selectedModels.length > 0) {
+        setLoadingModels([...selectedModels]);
+        
+        const compareId = Date.now().toString(); // unique ID for this compare run
+        const initialCompareMessage: Message = {
+            id: compareId,
+            role: "ASSISTANT",
+            type: "compare",
+            responses: []
+        };
+        
+        setMessages(prev => [...prev, initialCompareMessage]);
 
-      const targetId = chatResponses[0].conversationId || activeConversationId;
-      if (!activeConversationId && chatResponses[0].conversationId) {
-        setActiveConversationId(chatResponses[0].conversationId);
+        // Consume independent chunks via SSE
+        await import('@/lib/api').then(m => m.streamCompareMessages(promptToSend, activeConversationId, selectedModels, (chunk) => {
+          const incomingModel = chunk.model?.trim() || '';
+          console.log('[COMPARE] chunk received:', { model: incomingModel, status: chunk.status, contentLen: chunk.content?.length });
+          
+          setLoadingModels(prev => prev.filter(m => !(m === incomingModel || incomingModel.includes(m) || m.includes(incomingModel))));
+          
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const compareIndex = newMessages.findIndex(m => m.id === compareId);
+            
+            if (compareIndex !== -1) {
+              const compareMsg = { ...newMessages[compareIndex] };
+              const responses = [...(compareMsg.responses || [])];
+              const existingRespIndex = responses.findIndex(r => r.model === incomingModel || incomingModel.includes(r.model) || r.model.includes(incomingModel));
+              
+              if (existingRespIndex !== -1) {
+                 const resp = { ...responses[existingRespIndex] };
+                 resp.model = incomingModel; // snap to latest model label
+                 if (chunk.status === 'SUCCESS' || chunk.status === 'FAILED') {
+                     resp.status = chunk.status;
+                     resp.latencyMs = chunk.latency || resp.latencyMs;
+                     resp.inputTokens = chunk.inputTokens || resp.inputTokens;
+                     resp.outputTokens = chunk.outputTokens || resp.outputTokens;
+                     if (chunk.status === 'FAILED' && chunk.errorMessage) {
+                         resp.content = (resp.content || '') + '\n\n[Error: ' + chunk.errorMessage + ']';
+                     }
+                 } else {
+                     // Append streaming content
+                     resp.content = (resp.content || '') + (chunk.content || '');
+                     resp.status = 'STREAMING';
+                 }
+                 responses[existingRespIndex] = resp;
+              } else {
+                 const newResp = {
+                     model: incomingModel,
+                     content: chunk.content || '',
+                     status: chunk.status || 'STREAMING',
+                     createdAt: new Date().toISOString()
+                 } as any;
+                 
+                 if (chunk.status === 'SUCCESS' || chunk.status === 'FAILED') {
+                     newResp.latencyMs = chunk.latency;
+                     newResp.inputTokens = chunk.inputTokens;
+                     newResp.outputTokens = chunk.outputTokens;
+                     if (chunk.status === 'FAILED' && chunk.errorMessage) {
+                         newResp.content = '[Error: ' + chunk.errorMessage + ']';
+                     }
+                 }
+                 responses.push(newResp);
+              }
+              compareMsg.responses = responses;
+              newMessages[compareIndex] = compareMsg;
+            }
+            
+            return newMessages;
+          });
+        }));
+
+        // Refresh UI context if necessary
+        const targetId = activeConversationId;
+        if (targetId) {
+          getConversationMetrics(targetId).then(setMetrics).catch(console.error);
+          getConversationLogs(targetId).then(logs => setInferenceLogs(logs || [])).catch(console.error);
+        }
+      } else {
+        // Fallback to existing single model synchronous flow
+        const chatResponses = await sendMessage(promptToSend, activeConversationId, selectedModel);
+        const chatResponse = chatResponses[0];
+        const latencyMs = Date.now() - startMs;
+        const assistantMessage: Message = { 
+          role: "ASSISTANT", 
+          content: chatResponse.response,
+          createdAt: new Date().toISOString(),
+          outputTokens: Math.ceil(chatResponse.response.length / 4),
+          latencyMs: latencyMs,
+          model: chatResponse.model || selectedModel
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+
+        const targetId = chatResponse.conversationId || activeConversationId;
+        if (!activeConversationId && chatResponse.conversationId) {
+          setActiveConversationId(chatResponse.conversationId);
+        }
+
+        if (targetId) {
+          console.log('[DEBUG] Fetching metrics after submit for targetId:', targetId);
+          getConversationMetrics(targetId)
+            .then(metricsData => {
+              console.log('[DEBUG] Metrics fetched after submit:', metricsData);
+              setMetrics(metricsData);
+            })
+            .catch(err => console.error("[DEBUG] Failed to fetch conversation metrics", err));
+
+          getConversationLogs(targetId)
+            .then(logsData => {
+              setInferenceLogs(logsData || []);
+            })
+            .catch(err => console.error("[DEBUG] Failed to fetch conversation logs", err));
+        }
       }
-
-      if (targetId) {
-        console.log('[DEBUG] Fetching metrics after submit for targetId:', targetId);
-        getConversationMetrics(targetId)
-          .then(metricsData => {
-            console.log('[DEBUG] Metrics fetched after submit:', metricsData);
-            setMetrics(metricsData);
-          })
-          .catch(err => console.error("[DEBUG] Failed to fetch conversation metrics", err));
-
-        getConversationLogs(targetId)
-          .then(logsData => {
-            setInferenceLogs(logsData || []);
-          })
-          .catch(err => console.error("[DEBUG] Failed to fetch conversation logs", err));
-      }
-
       loadConversations();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -232,6 +312,7 @@ export default function ChatPage() {
           <MessageList
             messages={messages}
             isLoading={isLoading}
+            loadingModels={loadingModels}
             error={error}
             messagesEndRef={messagesEndRef}
             onRetry={() => {

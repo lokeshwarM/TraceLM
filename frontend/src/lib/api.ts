@@ -60,6 +60,95 @@ export async function sendMessage(prompt: string, conversationId: string | null 
     return Array.isArray(data) ? data : [data];
 }
 
+export interface CompareResponseChunk {
+    model: string;
+    content: string;
+    latency?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    status: string;
+    errorMessage?: string;
+}
+
+export async function streamCompareMessages(
+    prompt: string, 
+    conversationId: string | null = null, 
+    models: string[],
+    onChunk: (chunk: CompareResponseChunk) => void
+): Promise<void> {
+    const body: Record<string, any> = { prompt, models };
+    if (conversationId) {
+        body.conversationId = conversationId;
+    }
+
+    const response = await fetch(`${BASE_URL}/stream`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok || !response.body) {
+        throw new Error('Failed to start compare stream');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let rawBuffer = '';
+    // Accumulate data: fields within a single SSE event block
+    let eventDataLines: string[] = [];
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        rawBuffer += decoder.decode(value, { stream: true });
+
+        // Split on newlines, keep the incomplete last piece in rawBuffer
+        const lines = rawBuffer.split('\n');
+        rawBuffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+            const trimmed = line.trimEnd(); // preserve leading content
+
+            if (trimmed === '') {
+                // Blank line = end of one SSE event — process accumulated data lines
+                if (eventDataLines.length > 0) {
+                    const rawData = eventDataLines.join('\n').trim();
+                    eventDataLines = [];
+                    if (!rawData) continue;
+                    console.log('[SSE] Received payload:', rawData);
+                    try {
+                        const chunk = JSON.parse(rawData) as CompareResponseChunk;
+                        onChunk(chunk);
+                    } catch (e) {
+                        console.error('[SSE] Failed to parse compare chunk:', e, 'raw:', rawData);
+                    }
+                }
+            } else if (trimmed.startsWith('data:')) {
+                // Strip the "data:" prefix and accumulate
+                eventDataLines.push(trimmed.slice(5).trimStart());
+            }
+            // Ignore "event:", "id:", "retry:" lines
+        }
+    }
+
+    // Flush any trailing event if stream ended without blank line
+    if (eventDataLines.length > 0) {
+        const rawData = eventDataLines.join('\n').trim();
+        if (rawData) {
+            console.log('[SSE] Received final trailing payload:', rawData);
+            try {
+                const chunk = JSON.parse(rawData) as CompareResponseChunk;
+                onChunk(chunk);
+            } catch (e) {
+                console.error('[SSE] Failed to parse trailing compare chunk:', e, 'raw:', rawData);
+            }
+        }
+    }
+}
+
 export async function getConversations(): Promise<ConversationResponse[]> {
     const response = await fetchWithTimeout(`${BASE_URL}/conversations`, {
         method: 'GET',

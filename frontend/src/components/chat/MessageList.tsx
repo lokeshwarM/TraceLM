@@ -1,14 +1,28 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 
-export interface Message {
-  role: "USER" | "ASSISTANT";
+export interface CompareResponse {
+  model: string;
   content: string;
+  latencyMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  status?: string;
+  createdAt?: string;
+}
+
+export interface Message {
+  id?: string;
+  role: "USER" | "ASSISTANT";
+  type?: "compare";
+  content?: string;
+  responses?: CompareResponse[];
   createdAt?: string;
   inputTokens?: number;
   outputTokens?: number;
   latencyMs?: number;
   model?: string;
+  status?: string;
 }
 
 interface MessageListProps {
@@ -16,10 +30,11 @@ interface MessageListProps {
   isLoading: boolean;
   error: string | null;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  loadingModels?: string[];
   onRetry?: () => void;
 }
 
-export function MessageList({ messages, isLoading, error, messagesEndRef, onRetry }: MessageListProps) {
+export function MessageList({ messages, isLoading, error, messagesEndRef, loadingModels, onRetry }: MessageListProps) {
   return (
     <div className="flex-1 bg-[#161921] border border-gray-800/60 rounded-2xl shadow-2xl flex flex-col overflow-hidden mb-4 transition-all">
       <div className="flex-1 overflow-y-auto p-6 sm:p-8">
@@ -39,8 +54,78 @@ export function MessageList({ messages, isLoading, error, messagesEndRef, onRetr
         <div className="flex flex-col gap-4">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex w-full flex-col ${msg.role === 'USER' ? 'items-end' : 'items-start'}`}>
-              <div className={`${msg.role === 'USER' ? 'max-w-[70%]' : 'max-w-[80%]'} rounded-2xl p-4 ${msg.role === 'USER' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[#1a1d27] border border-gray-700/50 text-gray-200 rounded-bl-none shadow-sm'}`}>
-                {msg.role === 'ASSISTANT' ? (
+              <div className={`${msg.role === 'USER' ? 'max-w-[70%]' : (msg.type === 'compare' ? 'w-full xl:max-w-[85%]' : 'max-w-[80%]')} rounded-2xl p-4 ${msg.role === 'USER' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-[#1a1d27] border border-gray-700/50 text-gray-200 rounded-bl-none shadow-sm'}`}>
+                {msg.type === 'compare' && msg.responses ? (
+                  <div className="flex flex-col gap-6">
+                    {msg.responses.map((resp, i) => (
+                      <div key={i} className="flex flex-col border-b border-gray-800/80 pb-6 last:border-0 last:pb-0">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <span className="text-sm text-blue-400 font-mono font-medium tracking-tight bg-blue-500/10 px-2.5 py-1 rounded-md">{resp.model}</span>
+                          {resp.status === 'SUCCESS' && (
+                            <span className="text-[10px] text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full font-semibold tracking-wide">SUCCESS</span>
+                          )}
+                          {resp.status === 'FAILED' && (
+                            <span className="text-[10px] text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-0.5 rounded-full font-semibold tracking-wide">FAILED</span>
+                          )}
+                          {resp.status === 'STREAMING' && (
+                            <span className="text-[10px] text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full font-semibold tracking-wide animate-pulse">STREAMING</span>
+                          )}
+                        </div>
+                        <div className="text-sm leading-relaxed text-gray-200">
+                          <ReactMarkdown
+                            components={{
+                              h1: ({ node, ...props }) => <h1 className="text-2xl font-bold mt-4 mb-2 text-white" {...props} />,
+                              h2: ({ node, ...props }) => <h2 className="text-xl font-bold mt-4 mb-2 text-white" {...props} />,
+                              h3: ({ node, ...props }) => <h3 className="text-lg font-bold mt-3 mb-2 text-white" {...props} />,
+                              p: ({ node, ...props }) => <p className="mb-3 last:mb-0" {...props} />,
+                              ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-3 space-y-1" {...props} />,
+                              ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-3 space-y-1" {...props} />,
+                              li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                              strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+                              code: ({ node, className, children, ...props }: any) => {
+                                const isInline = !String(children).includes('\n');
+                                if (isInline) {
+                                  return <code className="bg-[#0f1115] px-1.5 py-0.5 rounded text-blue-300 font-mono text-[0.8em]" {...props}>{children}</code>;
+                                }
+                                return (
+                                  <div className="bg-[#0f1115] rounded-xl p-4 overflow-x-auto my-3 border border-gray-700/50 shadow-inner">
+                                    <code className="font-mono text-[0.85em] text-gray-300 leading-normal" {...props}>
+                                      {children}
+                                    </code>
+                                  </div>
+                                );
+                              },
+                              a: ({ node, ...props }) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-2" {...props} target="_blank" rel="noopener noreferrer" />
+                            }}
+                          >
+                            {resp.content || ''}
+                          </ReactMarkdown>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-3 text-[11px] text-gray-500 font-medium">
+                          {resp.createdAt && <span>{new Date(resp.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                          {resp.inputTokens !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span>{resp.inputTokens} IN_TOKENS</span>
+                            </>
+                          )}
+                          {resp.outputTokens !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span>{resp.outputTokens} OUT_TOKENS</span>
+                            </>
+                          )}
+                          {resp.latencyMs !== undefined && (
+                            <>
+                              <span>•</span>
+                              <span>{(resp.latencyMs / 1000).toFixed(2)}s</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : msg.role === 'ASSISTANT' ? (
                   <div className="text-sm leading-relaxed">
                     <ReactMarkdown
                       components={{
@@ -68,37 +153,56 @@ export function MessageList({ messages, isLoading, error, messagesEndRef, onRetr
                         a: ({ node, ...props }) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-2" {...props} target="_blank" rel="noopener noreferrer" />
                       }}
                     >
-                      {msg.content}
+                      {msg.content || ''}
                     </ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap leading-relaxed text-sm">{msg.content}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed text-sm">{msg.content || ''}</p>
                 )}
               </div>
-              <div className="flex items-center space-x-1.5 mt-1.5 text-[10px] text-gray-500 font-medium px-2">
-                {msg.createdAt && <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
-                {msg.role === 'USER' && msg.inputTokens && (
-                  <>
-                    <span>•</span>
-                    <span>{msg.inputTokens} IN_TOKENS</span>
-                  </>
-                )}
-                {msg.role === 'ASSISTANT' && (msg.outputTokens || msg.latencyMs || msg.model) && (
-                  <>
-                    <span>•</span>
-                    {msg.model && (
-                      <span className="text-blue-400 font-mono tracking-tight">{msg.model}</span>
-                    )}
-                    {msg.model && (msg.outputTokens || msg.latencyMs) && <span className="mx-0.5">•</span>}
-                    {msg.outputTokens && <span>{msg.outputTokens} OUT_TOKENS</span>}
-                    {msg.latencyMs && <span>({(msg.latencyMs / 1000).toFixed(2)}s)</span>}
-                  </>
-                )}
-              </div>
+              {msg.type !== 'compare' && (
+                <div className="flex items-center space-x-1.5 mt-1.5 text-[10px] text-gray-500 font-medium px-2">
+                  {msg.createdAt && <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                  {msg.role === 'USER' && msg.inputTokens && (
+                    <>
+                      <span>•</span>
+                      <span>{msg.inputTokens} IN_TOKENS</span>
+                    </>
+                  )}
+                  {msg.role === 'ASSISTANT' && (msg.outputTokens || msg.latencyMs || msg.model) && (
+                    <>
+                      <span>•</span>
+                      {msg.model && (
+                        <span className="text-blue-400 font-mono tracking-tight">{msg.model}</span>
+                      )}
+                      {msg.model && (msg.outputTokens || msg.latencyMs) && <span className="mx-0.5">•</span>}
+                      {msg.outputTokens && <span>{msg.outputTokens} OUT_TOKENS</span>}
+                      {msg.latencyMs && <span>{(msg.latencyMs / 1000).toFixed(2)}s</span>}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ))}
 
-          {isLoading && (
+          {loadingModels && loadingModels.length > 0 && (
+            <div className="flex flex-col gap-3 mt-2">
+              {loadingModels.map((model, idx) => (
+                <div key={`loading-${idx}`} className="flex items-center justify-start">
+                  <div className="max-w-[80%] bg-[#1a1d27] border border-gray-700/50 rounded-2xl rounded-bl-none p-3 px-4 flex items-center space-x-3 shadow-sm">
+                    <span className="text-xs text-blue-400 font-mono font-medium tracking-tight">{model}</span>
+                    <div className="flex space-x-1.5 items-center h-full pt-1">
+                      <div className="w-1.5 h-1.5 bg-blue-500/70 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                      <div className="w-1.5 h-1.5 bg-blue-500/70 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                      <div className="w-1.5 h-1.5 bg-blue-500/70 rounded-full animate-bounce"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isLoading && (!loadingModels || loadingModels.length === 0) && (
             <div className="flex items-center justify-start mt-2">
               <div className="max-w-[80%] bg-[#1a1d27] border border-gray-700/50 rounded-2xl rounded-bl-none p-4 flex items-center space-x-2 shadow-sm">
                 <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
