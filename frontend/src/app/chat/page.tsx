@@ -22,6 +22,7 @@ export default function ChatPage() {
   const [metrics, setMetrics] = useState<ConversationMetricsResponse | null>(null);
   const [inferenceLogs, setInferenceLogs] = useState<InferenceLogResponse[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [traceFullscreen, setTraceFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -280,61 +281,102 @@ export default function ChatPage() {
       />
 
       <div className="flex-1 flex flex-col h-full min-w-0">
-        <header className="w-full pt-8 pb-4 px-4 sm:px-6 lg:px-8 text-center shrink-0">
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">TraceLM</h1>
-          <p className="text-gray-400 text-sm uppercase tracking-wider font-semibold">Conversation Trace Explorer</p>
+        <header className="w-full px-4 sm:px-6 lg:px-8 py-3 shrink-0 flex items-center justify-between border-b border-gray-800/60 bg-[#161921]/50 mb-4">
+          <div className="flex items-center space-x-3 w-1/3">
+            {metrics && activeConversationId && (
+              <>
+                <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">In</span>
+                  <span className="text-sm font-bold text-gray-200">{metrics.inputTokens?.toLocaleString() || '0'}</span>
+                </div>
+                <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Out</span>
+                  <span className="text-sm font-bold text-gray-200">{metrics.outputTokens?.toLocaleString() || '0'}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center justify-center w-1/3 text-center">
+            <h1 className="text-xl font-bold text-white tracking-tight leading-none mb-1">TraceLM</h1>
+            <p className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold">Conversation Trace Explorer</p>
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 w-1/3">
+            {metrics && activeConversationId && (
+              <>
+                <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Latency</span>
+                  <span className="text-sm font-bold text-gray-200">{metrics.avgLatency || '0'} ms</span>
+                </div>
+                <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm">
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Success</span>
+                  <span className="text-sm font-bold text-green-400">{metrics.successRate || '0'}%</span>
+                </div>
+              </>
+            )}
+          </div>
         </header>
 
-        <main className="w-full max-w-4xl mx-auto flex-1 flex flex-col overflow-hidden px-4 sm:px-6 lg:px-8 pb-6">
-          {(() => {
-            console.log('[DEBUG] Render Check -> metrics:', !!metrics, 'activeConversationId:', !!activeConversationId);
-            return metrics && activeConversationId && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 shrink-0 transition-all duration-300">
-                <div className="bg-[#161921] border border-gray-800/60 rounded-xl p-4 flex flex-col shadow-sm">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Input Tokens</span>
-                  <span className="text-xl font-bold text-gray-200 mt-1">{metrics.inputTokens?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="bg-[#161921] border border-gray-800/60 rounded-xl p-4 flex flex-col shadow-sm">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Output Tokens</span>
-                  <span className="text-xl font-bold text-gray-200 mt-1">{metrics.outputTokens?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="bg-[#161921] border border-gray-800/60 rounded-xl p-4 flex flex-col shadow-sm">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg Latency</span>
-                  <span className="text-xl font-bold text-gray-200 mt-1">{metrics.avgLatency || '0'} ms</span>
-                </div>
-                <div className="bg-[#161921] border border-gray-800/60 rounded-xl p-4 flex flex-col shadow-sm">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Success Rate</span>
-                  <span className="text-xl font-bold text-gray-200 mt-1">{metrics.successRate || '0'}%</span>
-                </div>
-              </div>
-            );
-          })()}
-          <MessageList
-            messages={messages}
-            isLoading={isLoading}
-            loadingModels={loadingModels}
-            error={error}
-            messagesEndRef={messagesEndRef}
-            onRetry={() => {
-              const lastUserMessage = [...messages].reverse().find(m => m.role === 'USER');
-              if (lastUserMessage) {
-                handleSubmit(undefined, lastUserMessage.content);
-              }
-            }}
-          />
+        <div className="flex-1 flex flex-row h-full min-h-0 overflow-hidden px-4 sm:px-6 lg:px-8 pb-6 gap-6 max-w-[1600px] mx-auto w-full">
+          {!traceFullscreen && (
+            <main className="flex-[7] flex flex-col h-full min-w-0 overflow-hidden">
 
-          {inferenceLogs && inferenceLogs.length > 0 && (
-            <div 
-              ref={logsContainerRef}
-              className="max-h-48 overflow-auto shrink-0 mb-4 bg-[#161921] border border-gray-800/60 rounded-2xl shadow-xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
-              style={{ overflowAnchor: 'none' }}
-            >
-              <div className="sticky top-0 h-10 px-5 border-b border-gray-800/60 bg-[#1a1d27]/95 backdrop-blur z-20 flex justify-between items-center min-w-max">
-                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Raw Inference Traces</h3>
+              <MessageList
+                messages={messages}
+                isLoading={isLoading}
+                loadingModels={loadingModels}
+                error={error}
+                messagesEndRef={messagesEndRef}
+                onRetry={() => {
+                  const lastUserMessage = [...messages].reverse().find(m => m.role === 'USER');
+                  if (lastUserMessage) {
+                    handleSubmit(undefined, lastUserMessage.content);
+                  }
+                }}
+              />
+              <ChatInput
+                prompt={prompt}
+                setPrompt={setPrompt}
+                isLoading={isLoading}
+                handleSubmit={handleSubmit}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+                selectedModels={selectedModels}
+                setSelectedModels={setSelectedModels}
+                compareMode={compareMode}
+                setCompareMode={setCompareMode}
+              />
+            </main>
+          )}
+
+          <aside className={`${traceFullscreen ? 'flex-1' : 'flex-[3]'} flex flex-col h-full min-w-0 bg-[#161921] border border-gray-800/60 rounded-2xl shadow-xl overflow-hidden`}>
+            <div className="sticky top-0 h-10 px-5 border-b border-gray-800/60 bg-[#1a1d27]/95 backdrop-blur z-20 flex justify-between items-center shrink-0">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Raw Inference Traces</h3>
+              <div className="flex items-center gap-3">
                 <span className="text-[10px] text-gray-500 bg-gray-800/50 px-2 py-0.5 rounded-full">{inferenceLogs.length} logs</span>
+                <button 
+                  onClick={() => setTraceFullscreen(!traceFullscreen)} 
+                  className="text-gray-400 hover:text-white transition-colors"
+                  title={traceFullscreen ? "Restore Split View" : "Maximize Trace Panel"}
+                >
+                  {traceFullscreen ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  )}
+                </button>
               </div>
-              <table className="w-full text-left text-sm text-gray-400 min-w-max">
-                <thead className="text-[10px] text-gray-500 uppercase bg-[#13151b] border-b border-gray-800/60 sticky top-10 z-10">
+            </div>
+            
+            <div ref={logsContainerRef} className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent p-0 relative">
+              {inferenceLogs && inferenceLogs.length > 0 ? (
+                <table className="w-full text-left text-sm text-gray-400 min-w-max">
+                  <thead className="text-[10px] text-gray-500 uppercase bg-[#13151b] border-b border-gray-800/60 sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-2.5 font-semibold">Timestamp</th>
                       <th className="px-4 py-2.5 font-semibold">Provider</th>
@@ -363,22 +405,14 @@ export default function ChatPage() {
                     ))}
                   </tbody>
                 </table>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500/70 text-sm">
+                  No inference traces yet.
+                </div>
+              )}
             </div>
-          )}
-
-          <ChatInput
-            prompt={prompt}
-            setPrompt={setPrompt}
-            isLoading={isLoading}
-            handleSubmit={handleSubmit}
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            selectedModels={selectedModels}
-            setSelectedModels={setSelectedModels}
-            compareMode={compareMode}
-            setCompareMode={setCompareMode}
-          />
-        </main>
+          </aside>
+        </div>
       </div>
 
       {toast && (
