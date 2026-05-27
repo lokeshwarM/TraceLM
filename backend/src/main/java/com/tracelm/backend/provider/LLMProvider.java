@@ -7,7 +7,7 @@ public interface LLMProvider {
     
     LLMResponse generateResponse(String prompt, String model);
 
-    default Flux<String> generateStreamResponse(String prompt, String model) {
+    default Flux<LLMResponse> generateStreamResponse(String prompt, String model) {
         throw new UnsupportedOperationException("Streaming not implemented");
     }
 }

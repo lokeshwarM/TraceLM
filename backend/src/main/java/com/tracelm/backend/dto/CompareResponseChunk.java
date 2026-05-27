@@ -13,4 +13,5 @@ public class CompareResponseChunk {
     private Integer outputTokens;
     private String status;
     private String errorMessage;
+    private String conversationId;
 }

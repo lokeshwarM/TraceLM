@@ -49,18 +49,24 @@ public class ChatController {
         String prompt = (String) request.get("prompt");
         String conversationIdStr = (String) request.get("conversationId");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
+        String requestId = (String) request.get("requestId");
         
         if (request.containsKey("models")) {
             List<String> models = (List<String>) request.get("models");
             if (models != null && !models.isEmpty()) {
-                return conversationService.processCompareStream(prompt, conversationId, models)
+                return conversationService.processCompareStream(prompt, conversationId, models, requestId)
                         .map(chunk -> ServerSentEvent.<Object>builder(chunk).build());
             }
         }
         
         String model = (String) request.get("model");
-        return conversationService.processMessageStream(prompt, conversationId, model)
+        return conversationService.processMessageStream(prompt, conversationId, model, requestId)
                 .map(chunk -> ServerSentEvent.<Object>builder(chunk).build());
+    }
+
+    @PostMapping("/cancel/{requestId}")
+    public void cancelRequest(@PathVariable String requestId) {
+        conversationService.cancelRequest(requestId);
     }
 
     @GetMapping("/conversations")

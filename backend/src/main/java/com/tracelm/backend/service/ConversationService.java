@@ -16,6 +16,8 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import reactor.core.publisher.Sinks;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,16 @@ public class ConversationService {
     private final InferenceLogRepository inferenceLogRepository;
     private final GeminiProvider llmProvider;
     private final LoggingService loggingService;
+
+    private final ConcurrentHashMap<String, Sinks.One<Void>> activeRequests = new ConcurrentHashMap<>();
+
+    public void cancelRequest(String requestId) {
+        if (requestId == null) return;
+        Sinks.One<Void> sink = activeRequests.remove(requestId);
+        if (sink != null) {
+            sink.tryEmitEmpty();
+        }
+    }
 
     public Map<String, String> processMessage(String prompt, UUID conversationId, String model) {
 
@@ -167,7 +179,7 @@ public class ConversationService {
                 .block();
     }
 
-    public Flux<String> processMessageStream(String prompt, UUID conversationId, String model) {
+    public Flux<LLMResponse> processMessageStream(String prompt, UUID conversationId, String model, String requestId) {
 
         Conversation conversation;
         if (conversationId != null) {
@@ -193,18 +205,42 @@ public class ConversationService {
         StringBuilder fullResponse = new StringBuilder();
 
         String selectedModel = normalizeModel(model);
+        
+        Sinks.One<Void> cancelSink = null;
+        if (requestId != null && !requestId.trim().isEmpty()) {
+            cancelSink = Sinks.one();
+            activeRequests.put(requestId, cancelSink);
+        }
 
-        return llmProvider.generateStreamResponse(prompt, model)
-                .doOnNext(chunk -> fullResponse.append(chunk))
+        Flux<LLMResponse> stream = llmProvider.generateStreamResponse(prompt, model);
+        
+        if (cancelSink != null) {
+            stream = stream.takeUntilOther(cancelSink.asMono());
+        }
+
+        int[] tokenCounts = new int[]{0, 0}; // [input, output]
+
+        return stream
+                .doOnNext(chunk -> {
+                    chunk.setConversationId(conversation.getId().toString());
+                    fullResponse.append(chunk.getContent());
+                    if (chunk.getInputTokens() != null && chunk.getInputTokens() > 0) {
+                        tokenCounts[0] = chunk.getInputTokens();
+                    }
+                    if (chunk.getOutputTokens() != null && chunk.getOutputTokens() > 0) {
+                        tokenCounts[1] = chunk.getOutputTokens();
+                    }
+                })
                 .doOnComplete(() -> {
+                    if (requestId != null) activeRequests.remove(requestId);
                     long latency = System.currentTimeMillis() - startTime;
                     loggingService.logInference(
                             conversation.getId(),
                             "Gemini",
                             selectedModel,
                             latency,
-                            0,
-                            0,
+                            tokenCounts[0],
+                            tokenCounts[1],
                             "SUCCESS"
                     );
 
@@ -226,10 +262,16 @@ public class ConversationService {
                             0,
                             "FAILED"
                     );
+                })
+                .doOnCancel(() -> {
+                    if (requestId != null) activeRequests.remove(requestId);
+                    loggingService.logInference(
+                            conversation.getId(), "Gemini", selectedModel, 0L, 0, 0, "CANCELLED"
+                    );
                 });
     }
 
-    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models) {
+    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models, String requestId) {
         Conversation conversation;
         if (conversationId != null) {
             conversation = conversationRepository.findById(conversationId)
@@ -249,7 +291,13 @@ public class ConversationService {
                 .build();
         messageRepository.save(userMessage);
 
-        return Flux.fromIterable(models)
+        Sinks.One<Void> cancelSink = null;
+        if (requestId != null && !requestId.trim().isEmpty()) {
+            cancelSink = Sinks.one();
+            activeRequests.put(requestId, cancelSink);
+        }
+
+        Flux<com.tracelm.backend.dto.CompareResponseChunk> stream = Flux.fromIterable(models)
                 .flatMap(model -> reactor.core.publisher.Mono.fromCallable(() -> {
                     String selectedModel = normalizeModel(model);
                     long startTime = System.currentTimeMillis();
@@ -277,6 +325,7 @@ public class ConversationService {
                                 .inputTokens(response.getInputTokens())
                                 .outputTokens(response.getOutputTokens())
                                 .status("SUCCESS")
+                                .conversationId(conversation.getId().toString())
                                 .build();
                     } catch (Exception e) {
                         loggingService.logInference(
@@ -287,9 +336,22 @@ public class ConversationService {
                                 .content("")
                                 .status("FAILED")
                                 .errorMessage(e.getMessage())
+                                .conversationId(conversation.getId().toString())
                                 .build();
                     }
                 }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic()));
+                
+        if (cancelSink != null) {
+            stream = stream.takeUntilOther(cancelSink.asMono());
+        }
+        
+        return stream
+                .doOnComplete(() -> {
+                    if (requestId != null) activeRequests.remove(requestId);
+                })
+                .doOnCancel(() -> {
+                    if (requestId != null) activeRequests.remove(requestId);
+                });
     }
 
     public List<ConversationResponse> getAllConversations() {

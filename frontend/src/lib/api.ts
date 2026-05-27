@@ -60,6 +60,12 @@ export async function sendMessage(prompt: string, conversationId: string | null 
     return Array.isArray(data) ? data : [data];
 }
 
+export async function cancelChatRequest(requestId: string): Promise<void> {
+    await fetch(`${BASE_URL}/cancel/${requestId}`, {
+        method: 'POST'
+    });
+}
+
 export interface CompareResponseChunk {
     model: string;
     content: string;
@@ -74,9 +80,11 @@ export async function streamCompareMessages(
     prompt: string, 
     conversationId: string | null = null, 
     models: string[],
+    requestId: string,
+    signal: AbortSignal,
     onChunk: (chunk: CompareResponseChunk) => void
 ): Promise<void> {
-    const body: Record<string, any> = { prompt, models };
+    const body: Record<string, any> = { prompt, models, requestId };
     if (conversationId) {
         body.conversationId = conversationId;
     }
@@ -87,6 +95,7 @@ export async function streamCompareMessages(
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
+        signal,
     });
 
     if (!response.ok || !response.body) {
@@ -144,6 +153,86 @@ export async function streamCompareMessages(
                 onChunk(chunk);
             } catch (e) {
                 console.error('[SSE] Failed to parse trailing compare chunk:', e, 'raw:', rawData);
+            }
+        }
+    }
+}
+
+export async function streamMessage(
+    prompt: string, 
+    conversationId: string | null = null, 
+    model: string,
+    requestId: string,
+    signal: AbortSignal,
+    onChunk: (data: { content: string, conversationId?: string }) => void
+): Promise<void> {
+    const body: Record<string, any> = { prompt, model, requestId };
+    if (conversationId) {
+        body.conversationId = conversationId;
+    }
+
+    const response = await fetch(`${BASE_URL}/stream`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal,
+    });
+
+    if (!response.ok || !response.body) {
+        throw new Error('Failed to start stream');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let rawBuffer = '';
+    let eventDataLines: string[] = [];
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        rawBuffer += decoder.decode(value, { stream: true });
+        const lines = rawBuffer.split('\n');
+        rawBuffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+            const trimmed = line.trimEnd();
+            if (trimmed === '') {
+                if (eventDataLines.length > 0) {
+                    const rawData = eventDataLines.join('\n').trim();
+                    eventDataLines = [];
+                    if (!rawData) continue;
+                    try {
+                        const parsed = JSON.parse(rawData);
+                        if (parsed && typeof parsed.content === 'string') {
+                            onChunk({ content: parsed.content, conversationId: parsed.conversationId });
+                        } else {
+                            onChunk({ content: rawData });
+                        }
+                    } catch {
+                        onChunk({ content: rawData });
+                    }
+                }
+            } else if (trimmed.startsWith('data:')) {
+                eventDataLines.push(trimmed.slice(5).trimStart());
+            }
+        }
+    }
+    
+    if (eventDataLines.length > 0) {
+        const rawData = eventDataLines.join('\n').trim();
+        if (rawData) {
+            try {
+                const parsed = JSON.parse(rawData);
+                if (parsed && typeof parsed.content === 'string') {
+                    onChunk({ content: parsed.content, conversationId: parsed.conversationId });
+                } else {
+                    onChunk({ content: rawData });
+                }
+            } catch {
+                onChunk({ content: rawData });
             }
         }
     }

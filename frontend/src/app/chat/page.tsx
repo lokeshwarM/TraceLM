@@ -25,6 +25,24 @@ export default function ChatPage() {
   const [traceFullscreen, setTraceFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
+  const activeRequestRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleCancel = async () => {
+    if (!activeRequestRef.current) return;
+    const currentRequestId = activeRequestRef.current;
+    
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+    }
+    
+    import('@/lib/api').then(m => m.cancelChatRequest(currentRequestId)).catch(console.error);
+    
+    setIsLoading(false);
+    setLoadingModels([]);
+    activeRequestRef.current = null;
+    abortControllerRef.current = null;
+  };
 
   const showToast = (message: string, type: 'success' | 'error' = 'error') => {
     setToast({ message, type });
@@ -141,23 +159,30 @@ export default function ChatPage() {
     setIsLoading(true);
     setError(null);
     const startMs = Date.now();
+    const requestId = Date.now().toString();
+    activeRequestRef.current = requestId;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    console.log("NEW REQUEST START");
+    console.log("ABORT STATE", abortControllerRef.current?.signal.aborted);
+    console.log("RESETTING CANCEL STATE");
 
     try {
       if (compareMode && selectedModels.length > 0) {
         setLoadingModels([...selectedModels]);
-        
         const compareId = Date.now().toString(); // unique ID for this compare run
-        const initialCompareMessage: Message = {
-            id: compareId,
-            role: "ASSISTANT",
-            type: "compare",
-            responses: []
-        };
-        
-        setMessages(prev => [...prev, initialCompareMessage]);
+
+        let resolvedConversationId = activeConversationId;
 
         // Consume independent chunks via SSE
-        await import('@/lib/api').then(m => m.streamCompareMessages(promptToSend, activeConversationId, selectedModels, (chunk) => {
+        await import('@/lib/api').then(m => m.streamCompareMessages(promptToSend, activeConversationId, selectedModels, requestId, abortController.signal, (chunk) => {
+          if (activeRequestRef.current !== requestId) return; // Prevent stale updates
+
+          if (chunk.conversationId && !resolvedConversationId) {
+             resolvedConversationId = chunk.conversationId;
+             setActiveConversationId(chunk.conversationId);
+          }
+
           const incomingModel = chunk.model?.trim() || '';
           console.log('[COMPARE] chunk received:', { model: incomingModel, status: chunk.status, contentLen: chunk.content?.length });
           
@@ -165,14 +190,28 @@ export default function ChatPage() {
           
           setMessages(prev => {
             const newMessages = [...prev];
-            const compareIndex = newMessages.findIndex(m => m.id === compareId);
+            let compareIndex = newMessages.findIndex(m => m.id === compareId);
             
-            if (compareIndex !== -1) {
-              const compareMsg = { ...newMessages[compareIndex] };
-              const responses = [...(compareMsg.responses || [])];
-              const existingRespIndex = responses.findIndex(r => r.model === incomingModel || incomingModel.includes(r.model) || r.model.includes(incomingModel));
-              
-              if (existingRespIndex !== -1) {
+            if (compareIndex === -1) {
+              // Wait for first valid content chunk before creating response container
+              if (!chunk.content && chunk.status === 'STREAMING') {
+                return newMessages;
+              }
+              const newMsg = {
+                  id: compareId,
+                  role: "ASSISTANT",
+                  type: "compare",
+                  responses: []
+              } as Message;
+              newMessages.push(newMsg);
+              compareIndex = newMessages.length - 1;
+            }
+            
+            const compareMsg = { ...newMessages[compareIndex] };
+            const responses = [...(compareMsg.responses || [])];
+            const existingRespIndex = responses.findIndex(r => r.model === incomingModel || incomingModel.includes(r.model) || r.model.includes(incomingModel));
+            
+            if (existingRespIndex !== -1) {
                  const resp = { ...responses[existingRespIndex] };
                  resp.model = incomingModel; // snap to latest model label
                  if (chunk.status === 'SUCCESS' || chunk.status === 'FAILED') {
@@ -180,6 +219,9 @@ export default function ChatPage() {
                      resp.latencyMs = chunk.latency || resp.latencyMs;
                      resp.inputTokens = chunk.inputTokens || resp.inputTokens;
                      resp.outputTokens = chunk.outputTokens || resp.outputTokens;
+                     if (chunk.content) {
+                         resp.content = chunk.content;
+                     }
                      if (chunk.status === 'FAILED' && chunk.errorMessage) {
                          resp.content = (resp.content || '') + '\n\n[Error: ' + chunk.errorMessage + ']';
                      }
@@ -207,59 +249,91 @@ export default function ChatPage() {
                  }
                  responses.push(newResp);
               }
-              compareMsg.responses = responses;
-              newMessages[compareIndex] = compareMsg;
-            }
-            
+            compareMsg.responses = responses;
+            newMessages[compareIndex] = compareMsg;
             return newMessages;
           });
         }));
 
         // Refresh UI context if necessary
-        const targetId = activeConversationId;
+        const targetId = resolvedConversationId;
         if (targetId) {
           getConversationMetrics(targetId).then(setMetrics).catch(console.error);
           getConversationLogs(targetId).then(logs => setInferenceLogs(logs || [])).catch(console.error);
         }
       } else {
-        // Fallback to existing single model synchronous flow
-        const chatResponses = await sendMessage(promptToSend, activeConversationId, selectedModel);
-        const chatResponse = chatResponses[0];
-        const latencyMs = Date.now() - startMs;
-        const assistantMessage: Message = { 
-          role: "ASSISTANT", 
-          content: chatResponse.response,
-          createdAt: new Date().toISOString(),
-          outputTokens: Math.ceil(chatResponse.response.length / 4),
-          latencyMs: latencyMs,
-          model: chatResponse.model || selectedModel
-        };
-        setMessages(prev => [...prev, assistantMessage]);
+        const messageId = Date.now().toString();
 
-        const targetId = chatResponse.conversationId || activeConversationId;
-        if (!activeConversationId && chatResponse.conversationId) {
-          setActiveConversationId(chatResponse.conversationId);
-        }
+        console.log('[NORMAL MODE] Request started for model:', selectedModel);
+        let isFirstChunk = true;
 
+        let resolvedConversationId = activeConversationId;
+
+        await import('@/lib/api').then(m => m.streamMessage(promptToSend, activeConversationId, selectedModel, requestId, abortController.signal, (chunk) => {
+          if (isFirstChunk) {
+            console.log('[NORMAL MODE] First chunk received');
+            isFirstChunk = false;
+          }
+          console.log('[NORMAL MODE] Chunk parsed:', chunk);
+
+          if (activeRequestRef.current !== requestId) {
+              console.log('[NORMAL MODE] Stale update skipped');
+              return; // Prevent stale updates
+          }
+          if (!chunk || !chunk.content) {
+              if (chunk && chunk.conversationId && !resolvedConversationId) {
+                  resolvedConversationId = chunk.conversationId;
+                  setActiveConversationId(chunk.conversationId);
+              }
+              console.log('[NORMAL MODE] Empty chunk skipped');
+              return; // Prevent empty chunk creating card
+          }
+
+          if (chunk.conversationId && !resolvedConversationId) {
+             resolvedConversationId = chunk.conversationId;
+             setActiveConversationId(chunk.conversationId);
+          }
+          
+          setMessages(prev => {
+            const newMessages = [...prev];
+            let msgIndex = newMessages.findIndex(m => m.id === messageId);
+            
+            if (msgIndex === -1) {
+               newMessages.push({
+                   id: messageId,
+                   role: "ASSISTANT",
+                   content: "",
+                   model: selectedModel,
+                   createdAt: new Date().toISOString()
+               });
+               msgIndex = newMessages.length - 1;
+            }
+            
+            const msg = { ...newMessages[msgIndex] };
+            msg.content = (msg.content || '') + chunk.content;
+            newMessages[msgIndex] = msg;
+            
+            console.log('[NORMAL MODE] Content appended, total length:', msg.content.length);
+            
+            return newMessages;
+          });
+        }));
+        
+        console.log('[NORMAL MODE] Stream completed');
+
+        const targetId = resolvedConversationId;
         if (targetId) {
-          console.log('[DEBUG] Fetching metrics after submit for targetId:', targetId);
-          getConversationMetrics(targetId)
-            .then(metricsData => {
-              console.log('[DEBUG] Metrics fetched after submit:', metricsData);
-              setMetrics(metricsData);
-            })
-            .catch(err => console.error("[DEBUG] Failed to fetch conversation metrics", err));
-
-          getConversationLogs(targetId)
-            .then(logsData => {
-              setInferenceLogs(logsData || []);
-            })
-            .catch(err => console.error("[DEBUG] Failed to fetch conversation logs", err));
+          getConversationMetrics(targetId).then(setMetrics).catch(console.error);
+          getConversationLogs(targetId).then(logs => setInferenceLogs(logs || [])).catch(console.error);
         }
       }
       loadConversations();
     } catch (err: unknown) {
       if (err instanceof Error) {
+        if (err.name === 'AbortError' || err.message.includes('abort') || err.message.includes('Network request timed out')) {
+          console.log('[DEBUG] Request aborted');
+          return;
+        }
         setError(err.message);
         showToast(err.message, 'error');
       } else {
@@ -267,7 +341,12 @@ export default function ChatPage() {
         showToast('An unexpected error occurred.', 'error');
       }
     } finally {
-      setIsLoading(false);
+      if (activeRequestRef.current === requestId) {
+        setIsLoading(false);
+        setLoadingModels([]);
+        activeRequestRef.current = null;
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -346,6 +425,7 @@ export default function ChatPage() {
                 setSelectedModels={setSelectedModels}
                 compareMode={compareMode}
                 setCompareMode={setCompareMode}
+                onCancel={handleCancel}
               />
             </main>
           )}

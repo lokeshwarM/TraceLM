@@ -118,7 +118,7 @@ public class GeminiProvider implements LLMProvider {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Flux<String> generateStreamResponse(String prompt, String model) {
+    public Flux<LLMResponse> generateStreamResponse(String prompt, String model) {
         WebClient webClient = webClientBuilder.build();
         String selectedModel = normalizeModelId(model);
 
@@ -143,8 +143,8 @@ public class GeminiProvider implements LLMProvider {
                 .bodyValue(requestBody)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
-                .bodyToFlux(org.springframework.http.codec.ServerSentEvent.class)
-                .map(sse -> (String) sse.data())
+                .bodyToFlux(new org.springframework.core.ParameterizedTypeReference<org.springframework.http.codec.ServerSentEvent<String>>() {})
+                .map(sse -> sse.data())
                 .filter(json -> json != null && !json.isEmpty())
                 .flatMap(json -> {
                     try {
@@ -168,9 +168,46 @@ public class GeminiProvider implements LLMProvider {
                                     Object text = parts.get(0).get("text");
 
                                     if (text != null && !text.toString().isEmpty()) {
-                                        return Flux.just(text.toString());
+                                        LLMResponse.LLMResponseBuilder builder = LLMResponse.builder()
+                                                .content(text.toString())
+                                                .provider("Gemini")
+                                                .model(selectedModel);
+
+                                        Map<String, Object> usageMetadata =
+                                                (Map<String, Object>) parsed.get("usageMetadata");
+
+                                        if (usageMetadata != null) {
+                                            Number promptTokensNum = (Number) usageMetadata.get("promptTokenCount");
+                                            builder.inputTokens(promptTokensNum != null ? promptTokensNum.intValue() : 0);
+                                            
+                                            Number outputTokensNum = (Number) usageMetadata.get("candidatesTokenCount");
+                                            builder.outputTokens(outputTokensNum != null ? outputTokensNum.intValue() : 0);
+                                        } else {
+                                            builder.inputTokens(0).outputTokens(0);
+                                        }
+
+                                        return Flux.just(builder.build());
                                     }
                                 }
+                            }
+                        } else {
+                            // usageMetadata without candidates might be sent at the end
+                            Map<String, Object> usageMetadata =
+                                    (Map<String, Object>) parsed.get("usageMetadata");
+
+                            if (usageMetadata != null) {
+                                LLMResponse.LLMResponseBuilder builder = LLMResponse.builder()
+                                        .content("")
+                                        .provider("Gemini")
+                                        .model(selectedModel);
+
+                                Number promptTokensNum = (Number) usageMetadata.get("promptTokenCount");
+                                builder.inputTokens(promptTokensNum != null ? promptTokensNum.intValue() : 0);
+                                
+                                Number outputTokensNum = (Number) usageMetadata.get("candidatesTokenCount");
+                                builder.outputTokens(outputTokensNum != null ? outputTokensNum.intValue() : 0);
+
+                                return Flux.just(builder.build());
                             }
                         }
 

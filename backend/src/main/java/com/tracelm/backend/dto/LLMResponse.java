@@ -20,4 +20,6 @@ public class LLMResponse {
     private String provider;
 
     private String model;
+
+    private String conversationId;
 }
