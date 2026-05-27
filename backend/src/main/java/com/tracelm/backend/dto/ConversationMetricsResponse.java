@@ -12,4 +12,8 @@ public class ConversationMetricsResponse {
     private double avgLatency;
     private long requestCount;
     private double successRate;
+    private long memoryUsed;
+    private long memoryMax;
+    private long memoryRemaining;
+    private boolean windowExceeded;
 }

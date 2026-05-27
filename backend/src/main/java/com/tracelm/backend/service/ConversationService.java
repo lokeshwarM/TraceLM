@@ -31,6 +31,9 @@ public class ConversationService {
     private final GeminiProvider llmProvider;
     private final LoggingService loggingService;
 
+    private static final int MAX_CONTEXT_TOKENS = 15000;
+    private static final int SAFE_CONTEXT_LIMIT = 13000;
+
     private final ConcurrentHashMap<String, Sinks.One<Void>> activeRequests = new ConcurrentHashMap<>();
 
     public void cancelRequest(String requestId) {
@@ -63,10 +66,13 @@ public class ConversationService {
 
         messageRepository.save(userMessage);
 
+        MemoryContextResult memory = buildMemoryContext(conversation.getId());
+        List<Message> contextMessages = memory.messages;
+
         long startTime = System.currentTimeMillis();
         LLMResponse response;
         try {
-            response = llmProvider.generateResponse(prompt, model);
+            response = llmProvider.generateResponse(contextMessages, model);
             long latency = System.currentTimeMillis() - startTime;
 
             loggingService.logInference(
@@ -127,12 +133,15 @@ public class ConversationService {
                 .build();
         messageRepository.save(userMessage);
 
+        MemoryContextResult memory = buildMemoryContext(conversation.getId());
+        List<Message> contextMessages = memory.messages;
+
         return Flux.fromIterable(models)
                 .flatMap(model -> reactor.core.publisher.Mono.fromCallable(() -> {
                     long startTime = System.currentTimeMillis();
                     LLMResponse response;
                     try {
-                        response = llmProvider.generateResponse(prompt, model);
+                        response = llmProvider.generateResponse(contextMessages, model);
                         long latency = System.currentTimeMillis() - startTime;
                         loggingService.logInference(
                                 conversation.getId(),
@@ -201,6 +210,9 @@ public class ConversationService {
 
         messageRepository.save(userMessage);
 
+        MemoryContextResult memory = buildMemoryContext(conversation.getId());
+        List<Message> contextMessages = memory.messages;
+
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
 
@@ -212,7 +224,7 @@ public class ConversationService {
             activeRequests.put(requestId, cancelSink);
         }
 
-        Flux<LLMResponse> stream = llmProvider.generateStreamResponse(prompt, model);
+        Flux<LLMResponse> stream = llmProvider.generateStreamResponse(contextMessages, model);
         
         if (cancelSink != null) {
             stream = stream.takeUntilOther(cancelSink.asMono());
@@ -291,6 +303,9 @@ public class ConversationService {
                 .build();
         messageRepository.save(userMessage);
 
+        MemoryContextResult memory = buildMemoryContext(conversation.getId());
+        List<Message> contextMessages = memory.messages;
+
         Sinks.One<Void> cancelSink = null;
         if (requestId != null && !requestId.trim().isEmpty()) {
             cancelSink = Sinks.one();
@@ -303,7 +318,7 @@ public class ConversationService {
                     long startTime = System.currentTimeMillis();
                     
                     try {
-                        com.tracelm.backend.dto.LLMResponse response = llmProvider.generateResponse(prompt, model);
+                        com.tracelm.backend.dto.LLMResponse response = llmProvider.generateResponse(contextMessages, model);
                         long latency = System.currentTimeMillis() - startTime;
 
                         loggingService.logInference(
@@ -402,6 +417,8 @@ public class ConversationService {
         long totalTokens = inputTokens + outputTokens;
         double successRate = totalRequests > 0 ? ((double) successCount / totalRequests) * 100.0 : 0.0;
         
+        MemoryContextResult memory = buildMemoryContext(conversationId);
+        
         return ConversationMetricsResponse.builder()
                 .inputTokens(inputTokens)
                 .outputTokens(outputTokens)
@@ -409,6 +426,10 @@ public class ConversationService {
                 .avgLatency(Math.round(avgLatency * 100.0) / 100.0)
                 .requestCount(totalRequests)
                 .successRate(Math.round(successRate * 100.0) / 100.0)
+                .memoryUsed(memory.usedTokens)
+                .memoryMax(MAX_CONTEXT_TOKENS)
+                .memoryRemaining(Math.max(0, MAX_CONTEXT_TOKENS - memory.usedTokens))
+                .windowExceeded(memory.windowExceeded)
                 .build();
     }
 
@@ -440,6 +461,45 @@ public class ConversationService {
                 return "gemini-3.1-flash-lite";
             default:
                 return "gemini-3.1-flash-lite";
+        }
+    }
+
+    private MemoryContextResult buildMemoryContext(UUID conversationId) {
+        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+        
+        long usedTokens = 0;
+        boolean windowExceeded = false;
+        
+        List<Message> contextMessages = new java.util.ArrayList<>();
+        
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message msg = messages.get(i);
+            String content = msg.getContent() != null ? msg.getContent() : "";
+            int tokens = content.length() / 4;
+            int roughOverhead = 4; // structural padding roughly equivalent to tokens
+            int totalMsgTokens = tokens + roughOverhead;
+            
+            if (usedTokens + totalMsgTokens <= SAFE_CONTEXT_LIMIT) {
+                usedTokens += totalMsgTokens;
+                contextMessages.add(0, msg); // prepend to preserve ascending order
+            } else {
+                windowExceeded = true;
+                break;
+            }
+        }
+        
+        return new MemoryContextResult(contextMessages, usedTokens, windowExceeded);
+    }
+
+    private static class MemoryContextResult {
+        public final List<Message> messages;
+        public final long usedTokens;
+        public final boolean windowExceeded;
+
+        public MemoryContextResult(List<Message> messages, long usedTokens, boolean windowExceeded) {
+            this.messages = messages;
+            this.usedTokens = usedTokens;
+            this.windowExceeded = windowExceeded;
         }
     }
 }

@@ -372,6 +372,21 @@ export default function ChatPage() {
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Out</span>
                   <span className="text-sm font-bold text-gray-200">{metrics.outputTokens?.toLocaleString() || '0'}</span>
                 </div>
+                {metrics.memoryMax !== undefined && (
+                  <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm relative group">
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Memory</span>
+                    <span className="text-sm font-bold text-blue-400">
+                      {metrics.memoryUsed ? (metrics.memoryUsed > 999 ? (metrics.memoryUsed / 1000).toFixed(1) + 'k' : metrics.memoryUsed) : '0'} 
+                      <span className="text-gray-600 font-normal mx-1">/</span> 
+                      {metrics.memoryMax > 999 ? (metrics.memoryMax / 1000).toFixed(0) + 'k' : metrics.memoryMax}
+                    </span>
+                    {metrics.windowExceeded && (
+                      <div className="absolute top-full left-0 mt-2 w-max max-w-xs bg-[#1a1d27] border border-orange-500/30 text-orange-400/80 text-[10px] px-2.5 py-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        Older conversation memory may be trimmed.
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -379,6 +394,9 @@ export default function ChatPage() {
           <div className="flex flex-col items-center justify-center w-1/3 text-center">
             <h1 className="text-xl font-bold text-white tracking-tight leading-none mb-1">TraceLM</h1>
             <p className="text-gray-500 text-[10px] uppercase tracking-wider font-semibold">Conversation Trace Explorer</p>
+            {metrics?.windowExceeded && (
+              <p className="text-orange-500/60 text-[10px] tracking-wide mt-1 animate-pulse">Older conversation memory may be trimmed.</p>
+            )}
           </div>
 
           <div className="flex items-center justify-end space-x-3 w-1/3">

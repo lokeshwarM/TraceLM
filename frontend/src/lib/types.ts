@@ -39,6 +39,10 @@ export interface ConversationMetricsResponse {
     avgLatency: number;
     requestCount: number;
     successRate: number;
+    memoryUsed?: number;
+    memoryMax?: number;
+    memoryRemaining?: number;
+    windowExceeded?: boolean;
 }
 
 export interface InferenceLogResponse {

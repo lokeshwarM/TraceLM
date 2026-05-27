@@ -12,6 +12,8 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
 
+import com.tracelm.backend.entity.Message;
+
 @Component
 @RequiredArgsConstructor
 public class GeminiProvider implements LLMProvider {
@@ -45,23 +47,27 @@ public class GeminiProvider implements LLMProvider {
         }
     }
 
+    private List<Map<String, Object>> mapToGeminiContents(List<Message> messages) {
+        List<Map<String, Object>> contents = new java.util.ArrayList<>();
+        for (Message msg : messages) {
+            String role = "ASSISTANT".equalsIgnoreCase(msg.getRole()) ? "model" : "user";
+            contents.add(Map.of(
+                    "role", role,
+                    "parts", List.of(Map.of("text", msg.getContent() != null ? msg.getContent() : ""))
+            ));
+        }
+        return contents;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
-    public LLMResponse generateResponse(String prompt, String model) {
+    public LLMResponse generateResponse(List<Message> messages, String model) {
 
         WebClient webClient = webClientBuilder.build();
         String selectedModel = normalizeModelId(model);
 
         Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of(
-                                "parts", List.of(
-                                        Map.of(
-                                                "text", prompt
-                                        )
-                                )
-                        )
-                )
+                "contents", mapToGeminiContents(messages)
         );
 
         String url = String.format("%s/%s:generateContent?key=%s", baseUrl.replaceAll("/$", ""), selectedModel, apiKey);
@@ -118,20 +124,12 @@ public class GeminiProvider implements LLMProvider {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Flux<LLMResponse> generateStreamResponse(String prompt, String model) {
+    public Flux<LLMResponse> generateStreamResponse(List<Message> messages, String model) {
         WebClient webClient = webClientBuilder.build();
         String selectedModel = normalizeModelId(model);
 
         Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of(
-                                "parts", List.of(
-                                        Map.of(
-                                                "text", prompt
-                                        )
-                                )
-                        )
-                )
+                "contents", mapToGeminiContents(messages)
         );
 
         String streamUrl = String.format("%s/%s:streamGenerateContent?key=%s&alt=sse", 

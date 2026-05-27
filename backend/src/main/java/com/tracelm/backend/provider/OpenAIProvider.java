@@ -11,6 +11,8 @@ import com.tracelm.backend.dto.LLMResponse;
 import java.util.List;
 import java.util.Map;
 
+import com.tracelm.backend.entity.Message;
+
 @Component
 @RequiredArgsConstructor
 public class OpenAIProvider implements LLMProvider {
@@ -23,9 +25,21 @@ public class OpenAIProvider implements LLMProvider {
     @Value("${openai.model}")
     private String model;
 
+    private List<Map<String, String>> mapToOpenAIContents(List<Message> messages) {
+        List<Map<String, String>> contents = new java.util.ArrayList<>();
+        for (Message msg : messages) {
+            String role = "ASSISTANT".equalsIgnoreCase(msg.getRole()) ? "assistant" : "user";
+            contents.add(Map.of(
+                    "role", role,
+                    "content", msg.getContent() != null ? msg.getContent() : ""
+            ));
+        }
+        return contents;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
-    public LLMResponse generateResponse(String prompt, String model) {
+    public LLMResponse generateResponse(List<Message> messages, String model) {
 
         WebClient webClient = webClientBuilder.build();
 
@@ -33,12 +47,7 @@ public class OpenAIProvider implements LLMProvider {
 
         Map<String, Object> requestBody = Map.of(
                 "model", selectedModel,
-                "messages", List.of(
-                        Map.of(
-                                "role", "user",
-                                "content", prompt
-                        )
-                )
+                "messages", mapToOpenAIContents(messages)
         );
 
         Map<String, Object> response = webClient.post()
