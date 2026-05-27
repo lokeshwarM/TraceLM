@@ -14,6 +14,7 @@ export interface MessageResponse {
     role: string;
     content: string;
     createdAt: string;
+    piiRedacted?: boolean;
 }
 
 export interface ConversationResponse {

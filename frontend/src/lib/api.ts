@@ -74,6 +74,7 @@ export interface CompareResponseChunk {
     outputTokens?: number;
     status: string;
     errorMessage?: string;
+    conversationId?: string;
 }
 
 export async function streamCompareMessages(
@@ -164,7 +165,7 @@ export async function streamMessage(
     model: string,
     requestId: string,
     signal: AbortSignal,
-    onChunk: (data: { content: string, conversationId?: string }) => void
+    onChunk: (data: { content: string, conversationId?: string, inputTokens?: number, outputTokens?: number, model?: string }) => void
 ): Promise<void> {
     const body: Record<string, any> = { prompt, model, requestId };
     if (conversationId) {
@@ -207,7 +208,13 @@ export async function streamMessage(
                     try {
                         const parsed = JSON.parse(rawData);
                         if (parsed && typeof parsed.content === 'string') {
-                            onChunk({ content: parsed.content, conversationId: parsed.conversationId });
+                            onChunk({ 
+                                content: parsed.content, 
+                                conversationId: parsed.conversationId,
+                                inputTokens: parsed.inputTokens,
+                                outputTokens: parsed.outputTokens,
+                                model: parsed.model
+                            });
                         } else {
                             onChunk({ content: rawData });
                         }
@@ -227,7 +234,13 @@ export async function streamMessage(
             try {
                 const parsed = JSON.parse(rawData);
                 if (parsed && typeof parsed.content === 'string') {
-                    onChunk({ content: parsed.content, conversationId: parsed.conversationId });
+                    onChunk({ 
+                        content: parsed.content, 
+                        conversationId: parsed.conversationId,
+                        inputTokens: parsed.inputTokens,
+                        outputTokens: parsed.outputTokens,
+                        model: parsed.model
+                    });
                 } else {
                     onChunk({ content: rawData });
                 }

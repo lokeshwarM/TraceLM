@@ -25,6 +25,7 @@ export interface Message {
   latencyMs?: number;
   model?: string;
   status?: string;
+  piiRedacted?: boolean;
 }
 
 interface MessageListProps {
@@ -95,23 +96,48 @@ export function MessageList({ messages, isLoading, error, messagesEndRef, loadin
                 )}
               </div>
               {msg.type !== 'compare' && (
-                <div className="flex items-center space-x-1.5 mt-1.5 text-[10px] text-gray-500 font-medium px-2">
-                  {msg.createdAt && <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
-                  {msg.role === 'USER' && msg.inputTokens && (
+                <div className="flex items-center space-x-2 mt-1.5 text-[11px] text-gray-500 font-medium px-2">
+                  {msg.role === 'USER' ? (
                     <>
-                      <span>•</span>
-                      <span>{msg.inputTokens} IN_TOKENS</span>
-                    </>
-                  )}
-                  {msg.role === 'ASSISTANT' && (msg.outputTokens || msg.latencyMs || msg.model) && (
-                    <>
-                      <span>•</span>
-                      {msg.model && (
-                        <span className="text-blue-400 font-mono tracking-tight">{msg.model}</span>
+                      {msg.createdAt && <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                      {msg.piiRedacted && (
+                        <>
+                          <span className="opacity-50">•</span>
+                          <span className="text-red-400 font-bold bg-red-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider">PII REDACTED</span>
+                        </>
                       )}
-                      {msg.model && (msg.outputTokens || msg.latencyMs) && <span className="mx-0.5">•</span>}
-                      {msg.outputTokens && <span>{msg.outputTokens} OUT_TOKENS</span>}
-                      {msg.latencyMs && <span>{(msg.latencyMs / 1000).toFixed(2)}s</span>}
+                      {msg.inputTokens !== undefined && (
+                        <>
+                          <span className="opacity-50">•</span>
+                          <span>{msg.inputTokens} tokens</span>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {msg.model && (
+                        <>
+                          <span className="text-blue-400 font-mono font-bold tracking-tight bg-blue-500/10 px-2 py-0.5 rounded-md">{msg.model}</span>
+                        </>
+                      )}
+                      {msg.latencyMs !== undefined && (
+                        <>
+                          {msg.model && <span className="opacity-50">•</span>}
+                          <span>{(msg.latencyMs / 1000).toFixed(2)}s</span>
+                        </>
+                      )}
+                      {msg.outputTokens !== undefined && (
+                        <>
+                          {(msg.model || msg.latencyMs !== undefined) && <span className="opacity-50">•</span>}
+                          <span>{msg.outputTokens} tokens</span>
+                        </>
+                      )}
+                      {msg.createdAt && (
+                        <>
+                          {(msg.model || msg.latencyMs !== undefined || msg.outputTokens !== undefined) && <span className="opacity-50">•</span>}
+                          <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </>
+                      )}
                     </>
                   )}
                 </div>

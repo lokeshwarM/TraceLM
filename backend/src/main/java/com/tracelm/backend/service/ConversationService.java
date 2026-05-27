@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import reactor.core.publisher.Sinks;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.tracelm.backend.service.PiiRedactionService;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,8 @@ public class ConversationService {
     private final InferenceLogRepository inferenceLogRepository;
     private final GeminiProvider llmProvider;
     private final LoggingService loggingService;
+    private final PiiRedactionService piiRedactionService;
+    private final PiiPipelineService piiPipelineService;
 
     private static final int MAX_CONTEXT_TOKENS = 15000;
     private static final int SAFE_CONTEXT_LIMIT = 13000;
@@ -58,10 +61,13 @@ public class ConversationService {
             conversationRepository.save(conversation);
         }
 
+        String sanitizedPrompt = piiRedactionService.sanitize(prompt);
+        boolean redacted = !prompt.equals(sanitizedPrompt);
         Message userMessage = Message.builder()
                 .conversation(conversation)
                 .role("USER")
-                .content(prompt)
+                .content(sanitizedPrompt)
+                .piiRedacted(redacted)
                 .build();
 
         messageRepository.save(userMessage);
@@ -126,10 +132,13 @@ public class ConversationService {
             conversationRepository.save(conversation);
         }
 
+        String sanitizedPrompt = piiRedactionService.sanitize(prompt);
+        boolean redacted = !prompt.equals(sanitizedPrompt);
         Message userMessage = Message.builder()
                 .conversation(conversation)
                 .role("USER")
-                .content(prompt)
+                .content(sanitizedPrompt)
+                .piiRedacted(redacted)
                 .build();
         messageRepository.save(userMessage);
 
@@ -202,10 +211,13 @@ public class ConversationService {
             conversationRepository.save(conversation);
         }
 
+        String sanitizedPrompt = piiRedactionService.sanitize(prompt);
+        boolean redacted = !prompt.equals(sanitizedPrompt);
         Message userMessage = Message.builder()
                 .conversation(conversation)
                 .role("USER")
-                .content(prompt)
+                .content(sanitizedPrompt)
+                .piiRedacted(redacted)
                 .build();
 
         messageRepository.save(userMessage);
@@ -296,10 +308,13 @@ public class ConversationService {
             conversationRepository.save(conversation);
         }
 
+        String sanitizedPrompt = piiRedactionService.sanitize(prompt);
+        boolean redacted = !prompt.equals(sanitizedPrompt);
         Message userMessage = Message.builder()
                 .conversation(conversation)
                 .role("USER")
-                .content(prompt)
+                .content(sanitizedPrompt)
+                .piiRedacted(redacted)
                 .build();
         messageRepository.save(userMessage);
 
@@ -393,6 +408,7 @@ public class ConversationService {
                                 .role(message.getRole())
                                 .content(message.getContent())
                                 .createdAt(message.getCreatedAt())
+                                .piiRedacted(message.isPiiRedacted())
                                 .build())
                         .toList();
 

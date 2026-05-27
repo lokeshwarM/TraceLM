@@ -109,7 +109,8 @@ export default function ChatPage() {
             inputTokens: m.role === 'USER' ? Math.ceil(m.content.length / 4) : undefined,
             outputTokens: m.role === 'ASSISTANT' ? (log ? log.outputTokens : Math.ceil(m.content.length / 4)) : undefined,
             latencyMs: log ? log.latencyMs : undefined,
-            model: log ? log.model : undefined
+            model: log ? log.model : undefined,
+            piiRedacted: m.piiRedacted
           };
         }));
       } else {
@@ -311,6 +312,9 @@ export default function ChatPage() {
             
             const msg = { ...newMessages[msgIndex] };
             msg.content = (msg.content || '') + chunk.content;
+            if (chunk.inputTokens) msg.inputTokens = chunk.inputTokens;
+            if (chunk.outputTokens) msg.outputTokens = chunk.outputTokens;
+            if (chunk.model) msg.model = chunk.model;
             newMessages[msgIndex] = msg;
             
             console.log('[NORMAL MODE] Content appended, total length:', msg.content.length);

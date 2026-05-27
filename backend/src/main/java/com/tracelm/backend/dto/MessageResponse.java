@@ -17,4 +17,6 @@ public class MessageResponse {
     private String content;
 
     private LocalDateTime createdAt;
+
+    private boolean piiRedacted;
 }

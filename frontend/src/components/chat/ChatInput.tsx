@@ -36,8 +36,7 @@ export function ChatInput({
             <div className="flex items-center gap-2 bg-[#161921] border border-gray-800/60 rounded-lg p-1">
               {[
                 { id: 'gemini-3.1-flash-lite', label: 'Flash Lite' },
-                { id: 'gemma-4-26b', label: 'Gemma 26B' },
-                { id: 'gemma-4-31b', label: 'Gemma 31B' }
+                { id: 'gemma-4-26b', label: 'Gemma 26B' }
               ].map(model => (
                 <button
                   key={model.id}
@@ -69,7 +68,6 @@ export function ChatInput({
             >
               <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
               <option value="gemma-4-26b">Gemma 4 26B</option>
-              <option value="gemma-4-31b">Gemma 4 31B</option>
             </select>
           )}
         </div>

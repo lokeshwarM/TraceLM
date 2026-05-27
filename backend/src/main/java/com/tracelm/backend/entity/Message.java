@@ -32,6 +32,10 @@ public class Message {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "pii_redacted", nullable = false)
+    @Builder.Default
+    private boolean piiRedacted = false;
+
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
