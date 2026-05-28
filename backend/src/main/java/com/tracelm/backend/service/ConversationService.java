@@ -2,9 +2,11 @@ package com.tracelm.backend.service;
 
 import com.tracelm.backend.entity.Conversation;
 import com.tracelm.backend.entity.Message;
+import com.tracelm.backend.entity.User;
 import com.tracelm.backend.provider.GeminiProvider;
 import com.tracelm.backend.repository.ConversationRepository;
 import com.tracelm.backend.repository.MessageRepository;
+import com.tracelm.backend.repository.UserRepository;
 import com.tracelm.backend.repository.InferenceLogRepository;
 import com.tracelm.backend.logging.LoggingService;
 import com.tracelm.backend.dto.LLMResponse;
@@ -28,6 +30,7 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final UserRepository userRepository;
     private final InferenceLogRepository inferenceLogRepository;
     private final GeminiProvider llmProvider;
     private final LoggingService loggingService;
@@ -47,17 +50,23 @@ public class ConversationService {
         }
     }
 
-    public Map<String, String> processMessage(String prompt, UUID conversationId, String model) {
+    public Map<String, String> processMessage(String prompt, UUID conversationId, String model, String userId) {
 
         Conversation conversation;
         if (conversationId != null) {
             conversation = conversationRepository.findById(conversationId)
                     .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.getUser().getId().toString().equals(userId)) throw new RuntimeException("Unauthorized");
         } else {
+            
+            User user = userRepository.findById(UUID.fromString(userId))
+                    .orElseThrow(() -> new RuntimeException("User not found"));
             conversation = Conversation.builder()
                     .title(prompt.substring(0, Math.min(prompt.length(), 30)))
                     .status("ACTIVE")
+                    .user(user)
                     .build();
+
             conversationRepository.save(conversation);
         }
 
@@ -119,16 +128,22 @@ public class ConversationService {
         );
     }
 
-    public List<Map<String, String>> processMessages(String prompt, UUID conversationId, List<String> models) {
+    public List<Map<String, String>> processMessages(String prompt, UUID conversationId, List<String> models, String userId) {
         Conversation conversation;
         if (conversationId != null) {
             conversation = conversationRepository.findById(conversationId)
                     .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.getUser().getId().toString().equals(userId)) throw new RuntimeException("Unauthorized");
         } else {
+            
+            User user = userRepository.findById(UUID.fromString(userId))
+                    .orElseThrow(() -> new RuntimeException("User not found"));
             conversation = Conversation.builder()
                     .title(prompt.substring(0, Math.min(prompt.length(), 30)))
                     .status("ACTIVE")
+                    .user(user)
                     .build();
+
             conversationRepository.save(conversation);
         }
 
@@ -197,17 +212,23 @@ public class ConversationService {
                 .block();
     }
 
-    public Flux<LLMResponse> processMessageStream(String prompt, UUID conversationId, String model, String requestId) {
+    public Flux<LLMResponse> processMessageStream(String prompt, UUID conversationId, String model, String requestId, String userId) {
 
         Conversation conversation;
         if (conversationId != null) {
             conversation = conversationRepository.findById(conversationId)
                     .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.getUser().getId().toString().equals(userId)) throw new RuntimeException("Unauthorized");
         } else {
+            
+            User user = userRepository.findById(UUID.fromString(userId))
+                    .orElseThrow(() -> new RuntimeException("User not found"));
             conversation = Conversation.builder()
                     .title(prompt.substring(0, Math.min(prompt.length(), 30)))
                     .status("ACTIVE")
+                    .user(user)
                     .build();
+
             conversationRepository.save(conversation);
         }
 
@@ -256,25 +277,32 @@ public class ConversationService {
                     }
                 })
                 .doOnComplete(() -> {
-                    if (requestId != null) activeRequests.remove(requestId);
-                    long latency = System.currentTimeMillis() - startTime;
-                    loggingService.logInference(
-                            conversation.getId(),
-                            "Gemini",
-                            selectedModel,
-                            latency,
-                            tokenCounts[0],
-                            tokenCounts[1],
-                            "SUCCESS"
-                    );
+                    System.out.println("[STREAM] doOnComplete triggered");
+                    try {
+                        if (requestId != null) activeRequests.remove(requestId);
+                        long latency = System.currentTimeMillis() - startTime;
+                        loggingService.logInference(
+                                conversation.getId(),
+                                "Gemini",
+                                selectedModel,
+                                latency,
+                                tokenCounts[0],
+                                tokenCounts[1],
+                                "SUCCESS"
+                        );
 
-                    Message assistantMessage = Message.builder()
-                            .conversation(conversation)
-                            .role("ASSISTANT")
-                            .content(fullResponse.toString())
-                            .build();
+                        Message assistantMessage = Message.builder()
+                                .conversation(conversation)
+                                .role("ASSISTANT")
+                                .content(fullResponse.toString())
+                                .build();
 
-                    messageRepository.save(assistantMessage);
+                        messageRepository.save(assistantMessage);
+                        System.out.println("[STREAM] Saved message successfully");
+                    } catch (Exception e) {
+                        System.err.println("[STREAM] Error in doOnComplete: " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 })
                 .doOnError(e -> {
                     loggingService.logInference(
@@ -292,19 +320,29 @@ public class ConversationService {
                     loggingService.logInference(
                             conversation.getId(), "Gemini", selectedModel, 0L, 0, 0, "CANCELLED"
                     );
+                    System.out.println("[STREAM] doOnCancel triggered");
+                })
+                .doFinally(signalType -> {
+                    System.out.println("[STREAM] doFinally triggered with signal: " + signalType);
                 });
     }
 
-    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models, String requestId) {
+    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models, String requestId, String userId) {
         Conversation conversation;
         if (conversationId != null) {
             conversation = conversationRepository.findById(conversationId)
                     .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.getUser().getId().toString().equals(userId)) throw new RuntimeException("Unauthorized");
         } else {
+            
+            User user = userRepository.findById(UUID.fromString(userId))
+                    .orElseThrow(() -> new RuntimeException("User not found"));
             conversation = Conversation.builder()
                     .title(prompt.substring(0, Math.min(prompt.length(), 30)))
                     .status("ACTIVE")
+                    .user(user)
                     .build();
+
             conversationRepository.save(conversation);
         }
 
@@ -384,8 +422,8 @@ public class ConversationService {
                 });
     }
 
-    public List<ConversationResponse> getAllConversations() {
-        return conversationRepository.findAllByOrderByUpdatedAtDesc()
+    public List<ConversationResponse> getAllConversations(String userId) {
+        return conversationRepository.findByUserIdOrderByUpdatedAtDesc(UUID.fromString(userId))
                 .stream()
                 .map(conversation -> ConversationResponse.builder()
                         .id(conversation.getId())
@@ -396,9 +434,10 @@ public class ConversationService {
                 .toList();
     }
 
-    public ConversationResponse getConversation(UUID conversationId) {
+    public ConversationResponse getConversation(UUID conversationId, String userId) {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        if (!conversation.getUser().getId().toString().equals(userId)) throw new RuntimeException("Unauthorized");
 
         List<MessageResponse> messages =
                 messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId)
@@ -421,7 +460,7 @@ public class ConversationService {
                 .build();
     }
 
-    public ConversationMetricsResponse getConversationMetrics(UUID conversationId) {
+    public ConversationMetricsResponse getConversationMetrics(UUID conversationId, String userId) {
         var metrics = inferenceLogRepository.getConversationMetrics(conversationId);
         
         long totalRequests = metrics.getTotalRequests() != null ? metrics.getTotalRequests() : 0L;
@@ -449,7 +488,7 @@ public class ConversationService {
                 .build();
     }
 
-    public List<InferenceLogResponse> getConversationLogs(UUID conversationId) {
+    public List<InferenceLogResponse> getConversationLogs(UUID conversationId, String userId) {
         return inferenceLogRepository.findByConversationIdOrderByCreatedAtDesc(conversationId)
                 .stream()
                 .map(log -> InferenceLogResponse.builder()

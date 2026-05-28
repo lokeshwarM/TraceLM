@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/metrics")
 @RequiredArgsConstructor
-@CrossOrigin
 public class MetricsController {
 
     private final MetricsService metricsService;

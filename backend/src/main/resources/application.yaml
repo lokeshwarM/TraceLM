@@ -17,6 +17,18 @@ spring:
       hibernate:
         format_sql: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: moviesanime858@gmail.com
+    password: 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
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 server:
   port: 8080
 

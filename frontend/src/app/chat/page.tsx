@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { isAuthenticated, removeToken, getUserDetails } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 import { sendMessage, getConversations, getConversation, getConversationMetrics, getConversationLogs } from '@/lib/api';
 import { ConversationResponse, ConversationMetricsResponse, InferenceLogResponse } from '@/lib/types';
 import { MessageList, Message } from '@/components/chat/MessageList';
@@ -9,6 +11,12 @@ import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { Toast } from '@/components/ui/Toast';
 
 export default function ChatPage() {
+  const router = useRouter();
+  useLayoutEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/login");
+    }
+  }, [router]);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<ConversationResponse[]>([]);
@@ -27,6 +35,9 @@ export default function ChatPage() {
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const activeRequestRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  const [user, setUser] = useState<{name: string, email: string} | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const handleCancel = async () => {
     if (!activeRequestRef.current) return;
@@ -60,6 +71,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadConversations();
+    setUser(getUserDetails());
   }, []);
 
   const loadConversations = async () => {
@@ -415,6 +427,37 @@ export default function ChatPage() {
                   <span className="text-sm font-bold text-green-400">{metrics.successRate || '0'}%</span>
                 </div>
               </>
+            )}
+
+            {/* Profile Menu */}
+            {user && (
+              <div className="relative ml-4">
+                <button 
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#161921]"
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg bg-[#1a1d27] border border-gray-700 shadow-xl py-1 z-50">
+                    <div className="px-4 py-3 border-b border-gray-700/50">
+                      <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        removeToken();
+                        router.push('/login');
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                      Log out
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </header>
