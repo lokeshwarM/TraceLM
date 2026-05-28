@@ -20,14 +20,19 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: moviesanime858@gmail.com
-    password: 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
+    username: ${EMAIL_ADDRESS}
+    password: ${EMAIL_PASSWORD}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+
+google:
+  client:
+    id: ${GOOGLE_CLIENT_ID}
+    secret: ${GOOGLE_CLIENT_SECRET}
 
 server:
   port: 8080

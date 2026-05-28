@@ -6,7 +6,7 @@ import { setToken, isAuthenticated } from '@/lib/auth';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { API_BASE_URL } from '@/lib/api';
 
-const CLIENT_ID = '868804151789-fpj3o58c75681dvte9gbqtsirsj7uenc.apps.googleusercontent.com';
+const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 function LoginContent() {
     const router = useRouter();
