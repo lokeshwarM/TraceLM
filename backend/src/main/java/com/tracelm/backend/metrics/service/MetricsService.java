@@ -3,8 +3,11 @@ package com.tracelm.backend.metrics.service;
 import com.tracelm.backend.metrics.dto.MetricsOverviewResponse;
 import com.tracelm.backend.repository.ConversationRepository;
 import com.tracelm.backend.repository.InferenceLogRepository;
+import com.tracelm.backend.entity.User;
+import com.tracelm.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -12,10 +15,12 @@ public class MetricsService {
 
     private final ConversationRepository conversationRepository;
     private final InferenceLogRepository inferenceLogRepository;
+    private final UserRepository userRepository;
 
-    public MetricsOverviewResponse getOverview() {
-        long totalConversations = conversationRepository.count();
-        var metrics = inferenceLogRepository.getOverviewMetrics();
+    public MetricsOverviewResponse getOverview(String principalUserId) {
+        UUID userId = UUID.fromString(principalUserId);
+        long totalConversations = conversationRepository.countByUserId(userId);
+        var metrics = inferenceLogRepository.getOverviewMetrics(userId);
         
         long totalRequests = metrics.getTotalRequests() != null ? metrics.getTotalRequests() : 0L;
         double avgLatency = metrics.getAvgLatency() != null ? metrics.getAvgLatency() : 0.0;
@@ -36,18 +41,20 @@ public class MetricsService {
                 .build();
     }
 
-    public com.tracelm.backend.metrics.dto.ProviderAnalyticsResponse getProviders() {
-        var providers = inferenceLogRepository.getProviderUsage().stream()
+    public com.tracelm.backend.metrics.dto.ProviderAnalyticsResponse getProviders(String principalUserId) {
+        UUID userId = UUID.fromString(principalUserId);
+        var providers = inferenceLogRepository.getProviderUsage(userId).stream()
                 .map(p -> new com.tracelm.backend.metrics.dto.ProviderUsageResponse(p.getName(), p.getCount()))
                 .toList();
-        var models = inferenceLogRepository.getModelUsage().stream()
+        var models = inferenceLogRepository.getModelUsage(userId).stream()
                 .map(m -> new com.tracelm.backend.metrics.dto.ProviderUsageResponse(m.getName(), m.getCount()))
                 .toList();
         return new com.tracelm.backend.metrics.dto.ProviderAnalyticsResponse(providers, models);
     }
 
-    public java.util.List<com.tracelm.backend.metrics.dto.LatencyTrendResponse> getLatency() {
-        return inferenceLogRepository.getLatencyTrendByDate().stream()
+    public java.util.List<com.tracelm.backend.metrics.dto.LatencyTrendResponse> getLatency(String principalUserId) {
+        UUID userId = UUID.fromString(principalUserId);
+        return inferenceLogRepository.getLatencyTrendByDate(userId).stream()
                 .map(l -> new com.tracelm.backend.metrics.dto.LatencyTrendResponse(
                         l.getTimestamp().toString(),
                         Math.round(l.getAvgLatency() * 100.0) / 100.0))

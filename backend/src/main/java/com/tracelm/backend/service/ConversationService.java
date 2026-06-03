@@ -92,6 +92,7 @@ public class ConversationService {
 
             loggingService.logInference(
                     conversation.getId(),
+                    conversation.getUser(),
                     response.getProvider(),
                     response.getModel(),
                     latency,
@@ -103,6 +104,7 @@ public class ConversationService {
             String fallbackModel = (model != null && !model.trim().isEmpty()) ? model : "gemini-3.1-flash-lite";
             loggingService.logInference(
                     conversation.getId(),
+                    conversation.getUser(),
                     "Gemini",
                     fallbackModel,
                     0L,
@@ -169,6 +171,7 @@ public class ConversationService {
                         long latency = System.currentTimeMillis() - startTime;
                         loggingService.logInference(
                                 conversation.getId(),
+                                conversation.getUser(),
                                 response.getProvider(),
                                 response.getModel(),
                                 latency,
@@ -180,6 +183,7 @@ public class ConversationService {
                         String fallbackModel = (model != null && !model.trim().isEmpty()) ? model : "gemini-3.1-flash-lite";
                         loggingService.logInference(
                                 conversation.getId(),
+                                conversation.getUser(),
                                 "Gemini",
                                 fallbackModel,
                                 0L,
@@ -283,6 +287,7 @@ public class ConversationService {
                         long latency = System.currentTimeMillis() - startTime;
                         loggingService.logInference(
                                 conversation.getId(),
+                                conversation.getUser(),
                                 "Gemini",
                                 selectedModel,
                                 latency,
@@ -307,6 +312,7 @@ public class ConversationService {
                 .doOnError(e -> {
                     loggingService.logInference(
                             conversation.getId(),
+                            conversation.getUser(),
                             "Gemini",
                             selectedModel,
                             0L,
@@ -318,7 +324,7 @@ public class ConversationService {
                 .doOnCancel(() -> {
                     if (requestId != null) activeRequests.remove(requestId);
                     loggingService.logInference(
-                            conversation.getId(), "Gemini", selectedModel, 0L, 0, 0, "CANCELLED"
+                            conversation.getId(), conversation.getUser(), "Gemini", selectedModel, 0L, 0, 0, "CANCELLED"
                     );
                     System.out.println("[STREAM] doOnCancel triggered");
                 })
@@ -375,7 +381,7 @@ public class ConversationService {
                         long latency = System.currentTimeMillis() - startTime;
 
                         loggingService.logInference(
-                                conversation.getId(), "Gemini", selectedModel, latency,
+                                conversation.getId(), conversation.getUser(), "Gemini", selectedModel, latency,
                                 response.getInputTokens(), response.getOutputTokens(), "SUCCESS"
                         );
 
@@ -397,7 +403,7 @@ public class ConversationService {
                                 .build();
                     } catch (Exception e) {
                         loggingService.logInference(
-                                conversation.getId(), "Gemini", selectedModel, 0L, 0, 0, "FAILED"
+                                conversation.getId(), conversation.getUser(), "Gemini", selectedModel, 0L, 0, 0, "FAILED"
                         );
                         return com.tracelm.backend.dto.CompareResponseChunk.builder()
                                 .model(selectedModel)

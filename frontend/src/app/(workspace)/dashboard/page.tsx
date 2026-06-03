@@ -5,7 +5,6 @@ import { getMetricsOverview, getConversations, getProviderAnalytics, getLatencyT
 import { MetricsOverviewResponse, ConversationResponse, ProviderAnalyticsResponse, LatencyTrendResponse } from '@/lib/types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
 import { MetricCard } from '@/components/dashboard/MetricCard';
-import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
@@ -47,14 +46,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0f1115] text-gray-200 flex font-sans selection:bg-blue-500/30">
-      <ConversationSidebar
-        conversations={conversations}
-        activeId={null}
-        onSelect={() => router.push('/chat')}
-        onNewChat={() => router.push('/chat')}
-      />
-
+    <>
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto">
         <header className="w-full pt-10 pb-8 px-8 sm:px-10 lg:px-12 shrink-0 border-b border-gray-800/40 bg-[#0f1115]/80 backdrop-blur-sm sticky top-0 z-10">
           <h1 className="text-3xl font-bold text-white tracking-tight">Observability Overview</h1>
@@ -159,6 +151,6 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
-    </div>
+    </>
   );
 }

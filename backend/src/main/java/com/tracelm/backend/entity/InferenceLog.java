@@ -22,6 +22,10 @@ public class InferenceLog {
     @Column(name = "conversation_id", nullable = false)
     private UUID conversationId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @Column(nullable = false)
     private String provider;
 

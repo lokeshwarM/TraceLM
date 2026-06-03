@@ -8,12 +8,25 @@ if (typeof window !== 'undefined') {
     console.log('[TraceLM] API Base URL resolved to:', API_BASE_URL);
 }
 
-async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 30000): Promise<Response> {
+async function fetchWithAuth(url: string, options: RequestInit = {}, timeoutMs = 30000): Promise<Response> {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
+
+    const token = getToken();
+    const headers = new Headers(options.headers || {});
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
     try {
-        const response = await fetch(url, { ...options, signal: controller.signal });
+        const response = await fetch(url, { ...options, headers, signal: controller.signal });
         clearTimeout(id);
+        
+        if (response.status === 401 || response.status === 403) {
+            // Token might be invalid or expired. We could emit an event here to trigger logout.
+            console.error('[API] Authentication failed. 401/403 received.');
+        }
+
         return response;
     } catch (err: unknown) {
         clearTimeout(id);
@@ -54,11 +67,10 @@ export async function sendMessage(prompt: string, conversationId: string | null 
         body.conversationId = conversationId;
     }
 
-    const response = await fetchWithTimeout(`${CHAT_BASE_URL}`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(body),
     });
@@ -68,9 +80,8 @@ export async function sendMessage(prompt: string, conversationId: string | null 
 }
 
 export async function cancelChatRequest(requestId: string): Promise<void> {
-    await fetch(`${CHAT_BASE_URL}/cancel/${requestId}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${getToken()}` }
+    await fetchWithAuth(`${CHAT_BASE_URL}/cancel/${requestId}`, {
+        method: 'POST'
     });
 }
 
@@ -98,15 +109,14 @@ export async function streamCompareMessages(
         body.conversationId = conversationId;
     }
 
-    const response = await fetch(`${CHAT_BASE_URL}/stream`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}/stream`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(body),
         signal,
-    });
+    }, 120000);
 
     if (!response.ok || !response.body) {
         throw new Error('Failed to start compare stream');
@@ -185,15 +195,14 @@ export async function streamMessage(
         body.conversationId = conversationId;
     }
 
-    const response = await fetch(`${CHAT_BASE_URL}/stream`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}/stream`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(body),
         signal,
-    });
+    }, 120000);
 
     if (!response.ok || !response.body) {
         throw new Error('Failed to start stream');
@@ -270,11 +279,10 @@ export async function streamMessage(
 }
 
 export async function getConversations(): Promise<ConversationResponse[]> {
-    const response = await fetchWithTimeout(`${CHAT_BASE_URL}/conversations`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}/conversations`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
@@ -282,11 +290,10 @@ export async function getConversations(): Promise<ConversationResponse[]> {
 }
 
 export async function getConversation(id: string): Promise<ConversationResponse> {
-    const response = await fetchWithTimeout(`${CHAT_BASE_URL}/conversations/${id}`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}/conversations/${id}`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
@@ -294,11 +301,10 @@ export async function getConversation(id: string): Promise<ConversationResponse>
 }
 
 export async function getMetricsOverview(): Promise<MetricsOverviewResponse> {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/metrics/overview`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/metrics/overview`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
@@ -306,11 +312,10 @@ export async function getMetricsOverview(): Promise<MetricsOverviewResponse> {
 }
 
 export async function getConversationMetrics(id: string): Promise<ConversationMetricsResponse> {
-    const response = await fetchWithTimeout(`${CHAT_BASE_URL}/conversations/${id}/metrics`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}/conversations/${id}/metrics`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
@@ -318,11 +323,10 @@ export async function getConversationMetrics(id: string): Promise<ConversationMe
 }
 
 export async function getConversationLogs(id: string): Promise<import('./types').InferenceLogResponse[]> {
-    const response = await fetchWithTimeout(`${CHAT_BASE_URL}/conversations/${id}/logs`, {
+    const response = await fetchWithAuth(`${CHAT_BASE_URL}/conversations/${id}/logs`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
@@ -330,11 +334,10 @@ export async function getConversationLogs(id: string): Promise<import('./types')
 }
 
 export async function getProviderAnalytics(): Promise<import('./types').ProviderAnalyticsResponse> {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/metrics/providers`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/metrics/providers`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
@@ -342,13 +345,23 @@ export async function getProviderAnalytics(): Promise<import('./types').Provider
 }
 
 export async function getLatencyTrend(): Promise<import('./types').LatencyTrendResponse[]> {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/metrics/latency`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/metrics/latency`, {
         method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
         },
     });
 
     return handleResponse<import('./types').LatencyTrendResponse[]>(response);
+}
+
+export async function getMe(): Promise<{ id: string, name: string, email: string }> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/auth/me`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    });
+    
+    return handleResponse<{ id: string, name: string, email: string }>(response);
 }

@@ -1,8 +1,10 @@
 package com.tracelm.backend.logging;
 
 import java.util.UUID;
+import com.tracelm.backend.entity.User;
 import com.tracelm.backend.entity.InferenceLog;
 import com.tracelm.backend.repository.InferenceLogRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +14,18 @@ public class LoggingService {
 
     private final InferenceLogRepository inferenceLogRepository;
 
+    @PostConstruct
+    public void init() {
+        try {
+            inferenceLogRepository.backfillUserIds();
+        } catch (Exception e) {
+            System.err.println("Failed to backfill user IDs in InferenceLog: " + e.getMessage());
+        }
+    }
+
     public void logInference(
             UUID conversationId,
+            User user,
             String provider,
             String model,
             Long latencyMs,
@@ -24,6 +36,7 @@ public class LoggingService {
 
         InferenceLog log = InferenceLog.builder()
                 .conversationId(conversationId)
+                .user(user)
                 .provider(provider)
                 .model(model)
                 .latencyMs(latencyMs)

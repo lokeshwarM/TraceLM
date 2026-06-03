@@ -1,26 +1,26 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { isAuthenticated, removeToken, getUserDetails } from '@/lib/auth';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { sendMessage, getConversations, getConversation, getConversationMetrics, getConversationLogs } from '@/lib/api';
-import { ConversationResponse, ConversationMetricsResponse, InferenceLogResponse } from '@/lib/types';
+import { getConversation, getConversationMetrics, getConversationLogs } from '@/lib/api';
+import { ConversationMetricsResponse, InferenceLogResponse } from '@/lib/types';
 import { MessageList, Message } from '@/components/chat/MessageList';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { Toast } from '@/components/ui/Toast';
+import { useAuth } from '@/lib/AuthContext';
+import { useConversations } from '@/lib/ConversationsContext';
 
-export default function ChatPage() {
+interface ChatViewProps {
+  conversationId?: string;
+}
+
+export function ChatView({ conversationId }: ChatViewProps) {
   const router = useRouter();
-  useLayoutEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/login");
-    }
-  }, [router]);
+  const { user, logout } = useAuth();
+  const { loadConversations } = useConversations();
+
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [conversations, setConversations] = useState<ConversationResponse[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.1-flash-lite');
   const [selectedModels, setSelectedModels] = useState<string[]>(['gemini-3.1-flash-lite']);
   const [compareMode, setCompareMode] = useState<boolean>(false);
@@ -35,9 +35,6 @@ export default function ChatPage() {
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const activeRequestRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  const [user, setUser] = useState<{name: string, email: string} | null>(null);
-  const [profileOpen, setProfileOpen] = useState(false);
 
   const handleCancel = async () => {
     if (!activeRequestRef.current) return;
@@ -70,21 +67,17 @@ export default function ChatPage() {
   }, [inferenceLogs]);
 
   useEffect(() => {
-    loadConversations();
-    setUser(getUserDetails());
-  }, []);
-
-  const loadConversations = async () => {
-    try {
-      const data = await getConversations();
-      setConversations(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) {
-      console.error('Failed to load conversations', err);
+    if (conversationId) {
+      handleSelectConversation(conversationId);
+    } else {
+      setMessages([]);
+      setMetrics(null);
+      setInferenceLogs([]);
+      setPrompt('');
     }
-  };
+  }, [conversationId]);
 
   const handleSelectConversation = async (id: string) => {
-    setActiveConversationId(id);
     setIsLoading(true);
     setError(null);
     setMetrics(null);
@@ -143,16 +136,6 @@ export default function ChatPage() {
     }
   };
 
-  const handleNewChat = () => {
-    setActiveConversationId(null);
-    setMessages([]);
-    setError(null);
-    setMetrics(null);
-    setInferenceLogs([]);
-    setPrompt('');
-    setLoadingModels([]);
-  };
-
   const handleSubmit = async (e?: React.FormEvent, retryPrompt?: string) => {
     if (e) e.preventDefault();
     const promptToSend = retryPrompt || prompt.trim();
@@ -181,19 +164,18 @@ export default function ChatPage() {
     console.log("RESETTING CANCEL STATE");
 
     try {
+      let resolvedConversationId = conversationId;
+
       if (compareMode && selectedModels.length > 0) {
         setLoadingModels([...selectedModels]);
         const compareId = Date.now().toString(); // unique ID for this compare run
 
-        let resolvedConversationId = activeConversationId;
-
         // Consume independent chunks via SSE
-        await import('@/lib/api').then(m => m.streamCompareMessages(promptToSend, activeConversationId, selectedModels, requestId, abortController.signal, (chunk) => {
+        await import('@/lib/api').then(m => m.streamCompareMessages(promptToSend, conversationId, selectedModels, requestId, abortController.signal, (chunk) => {
           if (activeRequestRef.current !== requestId) return; // Prevent stale updates
 
           if (chunk.conversationId && !resolvedConversationId) {
              resolvedConversationId = chunk.conversationId;
-             setActiveConversationId(chunk.conversationId);
           }
 
           const incomingModel = chunk.model?.trim() || '';
@@ -280,9 +262,7 @@ export default function ChatPage() {
         console.log('[NORMAL MODE] Request started for model:', selectedModel);
         let isFirstChunk = true;
 
-        let resolvedConversationId = activeConversationId;
-
-        await import('@/lib/api').then(m => m.streamMessage(promptToSend, activeConversationId, selectedModel, requestId, abortController.signal, (chunk) => {
+        await import('@/lib/api').then(m => m.streamMessage(promptToSend, conversationId, selectedModel, requestId, abortController.signal, (chunk) => {
           if (isFirstChunk) {
             console.log('[NORMAL MODE] First chunk received');
             isFirstChunk = false;
@@ -296,7 +276,6 @@ export default function ChatPage() {
           if (!chunk || !chunk.content) {
               if (chunk && chunk.conversationId && !resolvedConversationId) {
                   resolvedConversationId = chunk.conversationId;
-                  setActiveConversationId(chunk.conversationId);
               }
               console.log('[NORMAL MODE] Empty chunk skipped');
               return; // Prevent empty chunk creating card
@@ -304,7 +283,6 @@ export default function ChatPage() {
 
           if (chunk.conversationId && !resolvedConversationId) {
              resolvedConversationId = chunk.conversationId;
-             setActiveConversationId(chunk.conversationId);
           }
           
           setMessages(prev => {
@@ -343,7 +321,12 @@ export default function ChatPage() {
           getConversationLogs(targetId).then(logs => setInferenceLogs(logs || [])).catch(console.error);
         }
       }
-      loadConversations();
+      
+      // If a new conversation was created, update sidebar and route
+      if (!conversationId && activeRequestRef.current && resolvedConversationId) {
+         loadConversations();
+         router.push('/chat/' + resolvedConversationId);
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.name === 'AbortError' || err.message.includes('abort') || err.message.includes('Network request timed out')) {
@@ -367,18 +350,10 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#0f1115] text-gray-200 flex font-sans selection:bg-blue-500/30">
-      <ConversationSidebar
-        conversations={conversations}
-        activeId={activeConversationId}
-        onSelect={handleSelectConversation}
-        onNewChat={handleNewChat}
-      />
-
-      <div className="flex-1 flex flex-col h-full min-w-0">
-        <header className="w-full px-4 sm:px-6 lg:px-8 py-3 shrink-0 flex items-center justify-between border-b border-gray-800/60 bg-[#161921]/50 mb-4">
-          <div className="flex items-center space-x-3 w-1/3">
-            {metrics && activeConversationId && (
+    <div className="flex-1 flex flex-col h-full min-w-0">
+      <header className="w-full px-4 sm:px-6 lg:px-8 py-3 shrink-0 flex items-center justify-between border-b border-gray-800/60 bg-[#161921]/50 mb-4">
+        <div className="flex items-center space-x-3 w-1/3">
+          {metrics && conversationId && (
               <>
                 <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm">
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">In</span>
@@ -416,7 +391,7 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center justify-end space-x-3 w-1/3">
-            {metrics && activeConversationId && (
+            {metrics && conversationId && (
               <>
                 <div className="flex items-center space-x-2 bg-[#1a1d27] border border-gray-700/50 rounded-full px-3 py-1 shadow-sm">
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Latency</span>
@@ -427,37 +402,6 @@ export default function ChatPage() {
                   <span className="text-sm font-bold text-green-400">{metrics.successRate || '0'}%</span>
                 </div>
               </>
-            )}
-
-            {/* Profile Menu */}
-            {user && (
-              <div className="relative ml-4">
-                <button 
-                  onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#161921]"
-                >
-                  {user.name.charAt(0).toUpperCase()}
-                </button>
-
-                {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-lg bg-[#1a1d27] border border-gray-700 shadow-xl py-1 z-50">
-                    <div className="px-4 py-3 border-b border-gray-700/50">
-                      <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        removeToken();
-                        router.push('/login');
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                      Log out
-                    </button>
-                  </div>
-                )}
-              </div>
             )}
           </div>
         </header>
@@ -558,8 +502,6 @@ export default function ChatPage() {
             </div>
           </aside>
         </div>
-      </div>
-
       {toast && (
         <Toast
           message={toast.message}
