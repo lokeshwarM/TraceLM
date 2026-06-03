@@ -9,6 +9,7 @@ export function ConversationSidebar() {
   const pathname = usePathname();
   const params = useParams();
   const isDashboard = pathname === '/dashboard';
+  const isMemory = pathname.startsWith('/memory');
   const { conversations } = useConversations();
   const { user, logout } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -29,11 +30,17 @@ export function ConversationSidebar() {
       </div>
 
       <div className="px-3 pb-4 pt-1 border-b border-gray-800/60">
-        <Link href="/chat" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors mb-1 ${!isDashboard ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
+        <Link href="/chat" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors mb-1 ${(!isDashboard && !isMemory) ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
             <span className="font-medium">Chat</span>
+        </Link>
+        <Link href="/memory" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors mb-1 ${isMemory ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span className="font-medium">Memory</span>
         </Link>
         <Link href="/dashboard" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isDashboard ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getConversation, getConversationMetrics, getConversationLogs } from '@/lib/api';
+import { getConversation, getConversationMetrics, getConversationLogs, createMemory } from '@/lib/api';
 import { ConversationMetricsResponse, InferenceLogResponse } from '@/lib/types';
 import { MessageList, Message } from '@/components/chat/MessageList';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -26,6 +26,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
   const [compareMode, setCompareMode] = useState<boolean>(false);
   const [loadingModels, setLoadingModels] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<ConversationMetricsResponse | null>(null);
   const [inferenceLogs, setInferenceLogs] = useState<InferenceLogResponse[]>([]);
@@ -123,16 +124,28 @@ export function ChatView({ conversationId }: ChatViewProps) {
       }
       setMetrics(metricsData);
       setInferenceLogs(logsData || []);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || 'Failed to load conversation.');
-        showToast(err.message || 'Failed to load conversation.', 'error');
-      } else {
-        setError('Failed to load conversation.');
-        showToast('Failed to load conversation.', 'error');
+      if (!conversationId && data.id) {
+        window.history.replaceState(null, '', `/chat/${data.id}`);
+        loadConversations();
       }
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+      setError('Failed to load conversation.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveMemory = async () => {
+    if (!conversationId) return;
+    setIsSavingMemory(true);
+    try {
+      await createMemory(conversationId);
+      setToast({ message: 'Saved to Memory', type: 'success' });
+    } catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Failed to save memory', type: 'error' });
+    } finally {
+      setIsSavingMemory(false);
     }
   };
 
@@ -401,6 +414,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
                   <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Success</span>
                   <span className="text-sm font-bold text-green-400">{metrics.successRate || '0'}%</span>
                 </div>
+                <button
+                  onClick={handleSaveMemory}
+                  disabled={isSavingMemory}
+                  className="flex items-center space-x-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20 rounded-full px-4 py-1.5 shadow-sm transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingMemory ? (
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin mr-1.5"></div>
+                  ) : (
+                    <svg className="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                  )}
+                  Save Memory
+                </button>
               </>
             )}
           </div>

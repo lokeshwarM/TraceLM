@@ -70,3 +70,15 @@ export interface LatencyTrendResponse {
     timestamp: string;
     avgLatency: number;
 }
+
+export interface MemoryResponse {
+    id: string;
+    title: string;
+    summary: string;
+    sourceConversationId: string;
+    messageCount: number;
+    tokenCount: number;
+    lastMessageAt: string;
+    pinned: boolean;
+    createdAt: string;
+}

@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import { ChatRequest, ChatResponse, ConversationResponse, MetricsOverviewResponse, ConversationMetricsResponse } from './types';
+import { ChatRequest, ChatResponse, ConversationResponse, MetricsOverviewResponse, ConversationMetricsResponse, MemoryResponse } from './types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 export const CHAT_BASE_URL = `${API_BASE_URL}/chat`;
@@ -77,6 +77,53 @@ export async function sendMessage(prompt: string, conversationId: string | null 
 
     const data = await handleResponse<any>(response);
     return Array.isArray(data) ? data : [data];
+}
+
+// Memory APIs
+export async function createMemory(conversationId: string): Promise<MemoryResponse> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/memories`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ conversationId }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to create memory: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function getMemories(): Promise<MemoryResponse[]> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/memories`);
+
+    if (!response.ok) {
+        throw new Error(`Failed to get memories: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function getMemory(id: string): Promise<MemoryResponse> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/memories/${id}`);
+
+    if (!response.ok) {
+        throw new Error(`Failed to get memory: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function deleteMemory(id: string): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/memories/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to delete memory: ${response.status}`);
+    }
 }
 
 export async function cancelChatRequest(requestId: string): Promise<void> {
