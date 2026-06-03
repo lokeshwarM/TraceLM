@@ -1,5 +1,5 @@
 import { getToken } from './auth';
-import { ChatRequest, ChatResponse, ConversationResponse, MetricsOverviewResponse, ConversationMetricsResponse, MemoryResponse } from './types';
+import { ChatRequest, ChatResponse, ConversationResponse, MetricsOverviewResponse, ConversationMetricsResponse, MemoryResponse, DocumentResponse } from './types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 export const CHAT_BASE_URL = `${API_BASE_URL}/chat`;
@@ -130,6 +130,68 @@ export async function cancelChatRequest(requestId: string): Promise<void> {
     await fetchWithAuth(`${CHAT_BASE_URL}/cancel/${requestId}`, {
         method: 'POST'
     });
+}
+
+// Document APIs
+export async function uploadDocument(file: File): Promise<DocumentResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // We don't set Content-Type header manually here so the browser can set the multipart boundary automatically
+    const token = getToken();
+    const headers = new Headers();
+    if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+
+    if (!response.ok) {
+        let errorMsg = `Failed to upload document: ${response.status}`;
+        try {
+            const errorObj = await response.json();
+            if (errorObj.message) errorMsg = errorObj.message;
+        } catch (e) {
+            // Ignore JSON parsing errors
+        }
+        throw new Error(errorMsg);
+    }
+
+    return response.json();
+}
+
+export async function getDocuments(): Promise<DocumentResponse[]> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/documents`);
+
+    if (!response.ok) {
+        throw new Error(`Failed to get documents: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function getDocument(id: string): Promise<DocumentResponse> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/documents/${id}`);
+
+    if (!response.ok) {
+        throw new Error(`Failed to get document: ${response.status}`);
+    }
+
+    return response.json();
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+    const response = await fetchWithAuth(`${API_BASE_URL}/documents/${id}`, {
+        method: 'DELETE',
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to delete document: ${response.status}`);
+    }
 }
 
 export interface CompareResponseChunk {

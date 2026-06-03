@@ -82,3 +82,15 @@ export interface MemoryResponse {
     pinned: boolean;
     createdAt: string;
 }
+
+export interface DocumentResponse {
+    id: string;
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+    pageCount?: number;
+    chunkCount: number;
+    extractedText?: string;
+    documentStatus: string;
+    uploadedAt: string;
+}
