@@ -10,6 +10,11 @@ import { Toast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useConversations } from '@/lib/ConversationsContext';
 
+export interface SubmitOptions {
+  overridePrompt?: string;
+  isRetry?: boolean;
+}
+
 interface ChatViewProps {
   conversationId?: string;
 }
@@ -149,12 +154,13 @@ export function ChatView({ conversationId }: ChatViewProps) {
     }
   };
 
-  const handleSubmit = async (e?: React.FormEvent, retryPrompt?: string) => {
+
+  const handleSubmit = async (e?: React.FormEvent, options?: SubmitOptions) => {
     if (e) e.preventDefault();
-    const promptToSend = retryPrompt || prompt.trim();
+    const promptToSend = options?.overridePrompt || prompt.trim();
     if (!promptToSend) return;
 
-    if (!retryPrompt) {
+    if (!options?.isRetry) {
       const userMessage: Message = { 
         role: "USER", 
         content: promptToSend,
@@ -445,7 +451,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
                 onRetry={() => {
                   const lastUserMessage = [...messages].reverse().find(m => m.role === 'USER');
                   if (lastUserMessage) {
-                    handleSubmit(undefined, lastUserMessage.content);
+                    handleSubmit(undefined, { overridePrompt: lastUserMessage.content, isRetry: true });
                   }
                 }}
               />

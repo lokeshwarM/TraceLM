@@ -144,6 +144,23 @@ export async function cancelChatRequest(requestId: string): Promise<void> {
     });
 }
 
+// Audio APIs
+export async function transcribeAudio(audioBlob: Blob): Promise<{ text: string, latencyMs: number, audioSizeBytes: number, status: string }> {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'audio.webm');
+
+    const response = await fetchWithAuth(`${API_BASE_URL}/audio/transcribe`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to transcribe audio: ${response.status}`);
+    }
+
+    return response.json();
+}
+
 // Document APIs
 export async function uploadDocument(file: File): Promise<DocumentResponse> {
     const formData = new FormData();
