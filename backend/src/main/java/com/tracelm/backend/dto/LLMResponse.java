@@ -24,4 +24,6 @@ public class LLMResponse {
     private String conversationId;
 
     private Object sources;
+
+    private String audioData;
 }

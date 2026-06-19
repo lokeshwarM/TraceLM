@@ -69,7 +69,7 @@ public class PiiRedactionService {
         try {
             String middlewarePrompt = String.format(PROMPT_TEMPLATE, prompt);
             Message msg = Message.builder().role("USER").content(middlewarePrompt).build();
-            LLMResponse response = geminiProvider.generateResponse(List.of(msg), MIDDLEWARE_MODEL);
+            LLMResponse response = geminiProvider.generateResponse(List.of(msg), MIDDLEWARE_MODEL, false);
             String sanitized = response.getContent() != null ? response.getContent().trim() : prompt;
             log.info("[SANITIZED_PROMPT] Redaction complete.");
             log.info("[PROVIDER_REQUEST_STARTED] Preparing to route sanitized prompt.");

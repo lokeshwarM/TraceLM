@@ -326,9 +326,10 @@ export async function streamMessage(
     model: string,
     requestId: string,
     signal: AbortSignal,
-    onChunk: (data: { content: string, conversationId?: string, inputTokens?: number, outputTokens?: number, model?: string, sources?: SourceMetadata[] }) => void
+    voiceOutput: boolean = false,
+    onChunk: (data: { content: string, conversationId?: string, inputTokens?: number, outputTokens?: number, model?: string, sources?: SourceMetadata[], audioData?: string }) => void
 ): Promise<void> {
-    const body: Record<string, any> = { prompt, model, requestId };
+    const body: Record<string, any> = { prompt, model, requestId, voiceOutput };
     if (conversationId) {
         body.conversationId = conversationId;
     }
@@ -345,6 +346,8 @@ export async function streamMessage(
     if (!response.ok || !response.body) {
         throw new Error('Failed to start stream');
     }
+
+    console.log("[ASSISTANT_MODE] SSE opened");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -373,13 +376,14 @@ export async function streamMessage(
                             return;
                         }
                         if (parsed && typeof parsed.content === 'string') {
-                            onChunk({ 
-                                content: parsed.content, 
-                                conversationId: parsed.conversationId,
-                                inputTokens: parsed.inputTokens,
-                                outputTokens: parsed.outputTokens,
-                                model: parsed.model
-                            });
+                                onChunk({ 
+                                    content: parsed.content, 
+                                    conversationId: parsed.conversationId,
+                                    inputTokens: parsed.inputTokens,
+                                    outputTokens: parsed.outputTokens,
+                                    model: parsed.model,
+                                    audioData: parsed.audioData
+                                });
                         } else {
                             onChunk({ content: rawData });
                         }
@@ -404,7 +408,8 @@ export async function streamMessage(
                         conversationId: parsed.conversationId,
                         inputTokens: parsed.inputTokens,
                         outputTokens: parsed.outputTokens,
-                        model: parsed.model
+                        model: parsed.model,
+                        audioData: parsed.audioData
                     });
                 } else {
                     onChunk({ content: rawData });

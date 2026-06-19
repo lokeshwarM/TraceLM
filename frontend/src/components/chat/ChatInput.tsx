@@ -89,8 +89,9 @@ export function ChatInput({
                 // Voice Assistant Mode: Automatically submit the combined text
                 // Set the prompt first for visual update
                 setPrompt(fullText);
+                console.log("[ASSISTANT_MODE] Submit clicked (Auto-send via Voice)");
                 // Immediately submit explicitly signaling it is NOT a retry, so the user bubble generates
-                handleSubmit(undefined, { overridePrompt: fullText, isRetry: false });
+                handleSubmit(undefined, { overridePrompt: fullText, isRetry: false, voiceOutputEnabled: true });
               } else {
                 // Dictation Mode: Just populate the textbox
                 setPrompt(fullText);
@@ -241,7 +242,14 @@ export function ChatInput({
           
           <button
             type="button"
-            onClick={isLoading ? onCancel : handleSubmit}
+            onClick={(e) => {
+              console.log("[ASSISTANT_MODE] Submit clicked (Manual button)");
+              if (isLoading) {
+                if (onCancel) onCancel();
+              } else {
+                handleSubmit(e as any);
+              }
+            }}
             disabled={(!isLoading && !prompt.trim()) || isRecording || isProcessingAudio}
             className={`p-2 rounded-xl transition-colors ${isLoading ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:hover:bg-blue-600 disabled:cursor-not-allowed'}`}
             aria-label={isLoading ? "Stop generation" : "Send message"}

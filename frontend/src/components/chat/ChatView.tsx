@@ -9,10 +9,12 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { Toast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useConversations } from '@/lib/ConversationsContext';
+import { BrowserVoiceOutputProvider } from '@/lib/voice/BrowserVoiceOutputProvider';
 
 export interface SubmitOptions {
   overridePrompt?: string;
   isRetry?: boolean;
+  voiceOutputEnabled?: boolean;
 }
 
 interface ChatViewProps {
@@ -41,6 +43,14 @@ export function ChatView({ conversationId }: ChatViewProps) {
   const logsContainerRef = useRef<HTMLDivElement>(null);
   const activeRequestRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const voiceProviderRef = useRef<BrowserVoiceOutputProvider | null>(null);
+
+  useEffect(() => {
+    voiceProviderRef.current = new BrowserVoiceOutputProvider();
+    return () => {
+      voiceProviderRef.current?.stop();
+    };
+  }, []);
 
   const handleCancel = async () => {
     if (!activeRequestRef.current) return;
@@ -49,6 +59,8 @@ export function ChatView({ conversationId }: ChatViewProps) {
     if (abortControllerRef.current) {
         abortControllerRef.current.abort();
     }
+    
+    voiceProviderRef.current?.stop();
     
     import('@/lib/api').then(m => m.cancelChatRequest(currentRequestId)).catch(console.error);
     
@@ -88,6 +100,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
     setError(null);
     setMetrics(null);
     setInferenceLogs([]);
+    voiceProviderRef.current?.stop();
     try {
       console.log('[DEBUG] Selecting conversation:', id);
       const [data, metricsData, logsData] = await Promise.all([
@@ -156,6 +169,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
 
 
   const handleSubmit = async (e?: React.FormEvent, options?: SubmitOptions) => {
+    console.log("[ASSISTANT_MODE] handleSubmit entered", { e: !!e, options });
     if (e) e.preventDefault();
     const promptToSend = options?.overridePrompt || prompt.trim();
     if (!promptToSend) return;
@@ -181,6 +195,11 @@ export function ChatView({ conversationId }: ChatViewProps) {
     console.log("NEW REQUEST START");
     console.log("ABORT STATE", abortControllerRef.current?.signal.aborted);
     console.log("RESETTING CANCEL STATE");
+    
+    voiceProviderRef.current?.stop();
+    
+    // Voice Output should be true if Voice Assistant mode is currently active
+    const isVoiceAssistantMode = localStorage.getItem('tracelm_voice_assistant_mode') === 'true';
 
     try {
       let resolvedConversationId = conversationId;
@@ -276,14 +295,18 @@ export function ChatView({ conversationId }: ChatViewProps) {
           getConversationLogs(targetId).then(logs => setInferenceLogs(logs || [])).catch(console.error);
         }
       } else {
+        // Voice Output should be based on the explicit flag passed in SubmitOptions
+        const voiceOutputFlag = options?.voiceOutputEnabled === true;
         const messageId = Date.now().toString();
-
+        
         console.log('[NORMAL MODE] Request started for model:', selectedModel);
         let isFirstChunk = true;
 
-        await import('@/lib/api').then(m => m.streamMessage(promptToSend, conversationId, selectedModel, requestId, abortController.signal, (chunk) => {
+        console.log("[VOICE] streamMessage called with voiceOutputEnabled =", voiceOutputFlag);
+        await import('@/lib/api').then(m => m.streamMessage(promptToSend, conversationId, selectedModel, requestId, abortController.signal, voiceOutputFlag, (chunk) => {
           if (isFirstChunk) {
             console.log('[NORMAL MODE] First chunk received');
+            console.log("[ASSISTANT_MODE] first chunk received", chunk);
             isFirstChunk = false;
           }
           console.log('[NORMAL MODE] Chunk parsed:', chunk);
@@ -291,13 +314,6 @@ export function ChatView({ conversationId }: ChatViewProps) {
           if (activeRequestRef.current !== requestId) {
               console.log('[NORMAL MODE] Stale update skipped');
               return; // Prevent stale updates
-          }
-          if (!chunk || !chunk.content) {
-              if (chunk && chunk.conversationId && !resolvedConversationId) {
-                  resolvedConversationId = chunk.conversationId;
-              }
-              console.log('[NORMAL MODE] Empty chunk skipped');
-              return; // Prevent empty chunk creating card
           }
 
           if (chunk.conversationId && !resolvedConversationId) {
@@ -309,6 +325,12 @@ export function ChatView({ conversationId }: ChatViewProps) {
             let msgIndex = newMessages.findIndex(m => m.id === messageId);
             
             if (msgIndex === -1) {
+               // Wait for first valid content chunk before creating response container
+               // If this chunk has no text content (e.g. it's pure audio or metadata), 
+               // do not create an empty bubble yet.
+               if (!chunk.content) {
+                   return prev;
+               }
                newMessages.push({
                    id: messageId,
                    role: "ASSISTANT",
@@ -320,20 +342,31 @@ export function ChatView({ conversationId }: ChatViewProps) {
             }
             
             const msg = { ...newMessages[msgIndex] };
-            msg.content = (msg.content || '') + chunk.content;
-            if (chunk.inputTokens) msg.inputTokens = chunk.inputTokens;
-            if (chunk.outputTokens) msg.outputTokens = chunk.outputTokens;
+            if (chunk.content) {
+                msg.content = (msg.content || '') + chunk.content;
+            }
+            if (chunk.inputTokens !== undefined) msg.inputTokens = chunk.inputTokens;
+            if (chunk.outputTokens !== undefined) msg.outputTokens = chunk.outputTokens;
             if (chunk.model) msg.model = chunk.model;
             if (chunk.sources) msg.sources = chunk.sources;
             newMessages[msgIndex] = msg;
             
-            console.log('[NORMAL MODE] Content appended, total length:', msg.content.length);
+            console.log('[NORMAL MODE] Content appended, total length:', msg.content?.length || 0);
             
             return newMessages;
           });
         }));
         
         console.log('[NORMAL MODE] Stream completed');
+        if (voiceOutputFlag) {
+          setMessages(prev => {
+            const finalMsg = prev.find(m => m.id === messageId);
+            if (finalMsg && finalMsg.content) {
+              voiceProviderRef.current?.speak(finalMsg.content);
+            }
+            return prev;
+          });
+        }
 
         const targetId = resolvedConversationId;
         if (targetId) {

@@ -27,6 +27,8 @@ public class ChatController {
         String conversationIdStr = (String) request.get("conversationId");
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
 
+        boolean voiceOutput = Boolean.TRUE.equals(request.get("voiceOutput"));
+
         if (request.containsKey("models")) {
             List<String> models = (List<String>) request.get("models");
             if (models != null && !models.isEmpty()) {
@@ -35,7 +37,7 @@ public class ChatController {
         }
 
         String model = (String) request.get("model");
-        Map<String, String> response = conversationService.processMessage(prompt, conversationId, model, principal.getName());
+        Map<String, String> response = conversationService.processMessage(prompt, conversationId, model, principal.getName(), voiceOutput);
 
         return Map.of(
                 "response", response.get("response"),
@@ -54,10 +56,12 @@ public class ChatController {
         UUID conversationId = (conversationIdStr != null && !conversationIdStr.trim().isEmpty()) ? UUID.fromString(conversationIdStr) : null;
         String requestId = (String) request.get("requestId");
         
+        boolean voiceOutput = Boolean.TRUE.equals(request.get("voiceOutput"));
+        
         if (request.containsKey("models")) {
             List<String> models = (List<String>) request.get("models");
             if (models != null && !models.isEmpty()) {
-                conversationService.processCompareStream(prompt, conversationId, models, requestId, principal.getName())
+                conversationService.processCompareStream(prompt, conversationId, models, requestId, principal.getName(), false)
                         .subscribe(
                                 chunk -> {
                                     try {
@@ -88,10 +92,19 @@ public class ChatController {
         }
         
         String model = (String) request.get("model");
-        conversationService.processMessageStream(prompt, conversationId, model, requestId, principal.getName())
+        if (voiceOutput) {
+            System.out.println("[VOICE] Request received");
+        }
+        conversationService.processMessageStream(prompt, conversationId, model, requestId, principal.getName(), voiceOutput)
                 .subscribe(
                         chunk -> {
                             try {
+                                if (voiceOutput) {
+                                    System.out.println("[VOICE] Emitting SSE chunk");
+                                    if (chunk.getAudioData() != null) {
+                                        System.out.println("[VOICE] Emitting audio chunk");
+                                    }
+                                }
                                 emitter.send(chunk);
                             } catch (Exception e) {
                                 System.err.println("Error sending SSE chunk: " + e.getMessage());
@@ -106,6 +119,9 @@ public class ChatController {
                         },
                         () -> {
                             try {
+                                if (voiceOutput) {
+                                    System.out.println("[VOICE] Stream completed");
+                                }
                                 emitter.send(java.util.Map.of("status", "DONE"));
                                 emitter.complete();
                             } catch (Exception e) {

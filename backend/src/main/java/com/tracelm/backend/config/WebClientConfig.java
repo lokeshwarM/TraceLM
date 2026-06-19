@@ -6,6 +6,7 @@ import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
+import io.netty.resolver.DefaultAddressResolverGroup;
 import io.netty.channel.ChannelOption;
 import java.time.Duration;
 
@@ -22,7 +23,7 @@ public class WebClientConfig {
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30000)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .responseTimeout(Duration.ofMinutes(5))
-                .resolver(spec -> spec.queryTimeout(Duration.ofSeconds(15)));
+                .resolver(DefaultAddressResolverGroup.INSTANCE);
 
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient))

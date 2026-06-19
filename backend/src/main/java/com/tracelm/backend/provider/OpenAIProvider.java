@@ -10,6 +10,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import com.tracelm.backend.dto.LLMResponse;
 import java.util.List;
 import java.util.Map;
+import reactor.core.publisher.Flux;
 
 import com.tracelm.backend.entity.Message;
 
@@ -37,9 +38,14 @@ public class OpenAIProvider implements LLMProvider {
         return contents;
     }
 
+    @Override
+    public Flux<LLMResponse> generateStreamResponse(List<Message> messages, String model, boolean voiceOutput) {
+        return null;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
-    public LLMResponse generateResponse(List<Message> messages, String model) {
+    public LLMResponse generateResponse(List<Message> messages, String model, boolean voiceOutput) {
 
         WebClient webClient = webClientBuilder.build();
 

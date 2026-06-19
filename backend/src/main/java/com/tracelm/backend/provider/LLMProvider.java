@@ -8,9 +8,9 @@ import java.util.List;
 
 public interface LLMProvider {
     
-    LLMResponse generateResponse(List<Message> messages, String model);
+    LLMResponse generateResponse(List<Message> messages, String model, boolean voiceOutput);
 
-    default Flux<LLMResponse> generateStreamResponse(List<Message> messages, String model) {
+    default Flux<LLMResponse> generateStreamResponse(List<Message> messages, String model, boolean voiceOutput) {
         throw new UnsupportedOperationException("Streaming not implemented");
     }
 }

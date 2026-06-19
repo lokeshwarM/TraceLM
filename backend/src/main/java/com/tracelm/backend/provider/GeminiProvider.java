@@ -61,14 +61,21 @@ public class GeminiProvider implements LLMProvider {
 
     @SuppressWarnings("unchecked")
     @Override
-    public LLMResponse generateResponse(List<Message> messages, String model) {
+    public LLMResponse generateResponse(List<Message> messages, String model, boolean voiceOutput) {
 
         WebClient webClient = webClientBuilder.build();
         String selectedModel = normalizeModelId(model);
 
-        Map<String, Object> requestBody = Map.of(
-                "contents", mapToGeminiContents(messages)
-        );
+        Map<String, Object> requestBody = new java.util.HashMap<>();
+        requestBody.put("contents", mapToGeminiContents(messages));
+        
+        if (voiceOutput) {
+            // For audio output, gemini-2.5-flash is currently required. 3.1-flash-lite might not support it.
+            selectedModel = "gemini-2.5-flash"; 
+            requestBody.put("generationConfig", Map.of(
+                "responseModalities", List.of("AUDIO")
+            ));
+        }
 
         String url = String.format("%s/%s:generateContent?key=%s", baseUrl.replaceAll("/$", ""), selectedModel, apiKey);
 
@@ -97,7 +104,20 @@ public class GeminiProvider implements LLMProvider {
         List<Map<String, Object>> parts =
                 (List<Map<String, Object>>) content.get("parts");
 
-        String aiText = parts.get(0).get("text").toString();
+        String aiText = "";
+        String audioData = null;
+        
+        for (Map<String, Object> part : parts) {
+            if (part.containsKey("text")) {
+                aiText += part.get("text").toString();
+            }
+            if (part.containsKey("inlineData")) {
+                Map<String, Object> inlineData = (Map<String, Object>) part.get("inlineData");
+                if (inlineData != null && inlineData.containsKey("data")) {
+                    audioData = inlineData.get("data").toString();
+                }
+            }
+        }
 
         Map<String, Object> usageMetadata =
                 (Map<String, Object>) response.get("usageMetadata");
@@ -119,22 +139,27 @@ public class GeminiProvider implements LLMProvider {
                 .outputTokens(outputTokens)
                 .model(selectedModel)
                 .provider("Gemini")
+                .audioData(audioData)
                 .build();
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public Flux<LLMResponse> generateStreamResponse(List<Message> messages, String model) {
+    public Flux<LLMResponse> generateStreamResponse(List<Message> messages, String model, boolean voiceOutput) {
         WebClient webClient = webClientBuilder.build();
-        String selectedModel = normalizeModelId(model);
+        String tempModel = normalizeModelId(model);
 
-        Map<String, Object> requestBody = Map.of(
-                "contents", mapToGeminiContents(messages)
-        );
+        Map<String, Object> requestBody = new java.util.HashMap<>();
+        requestBody.put("contents", mapToGeminiContents(messages));
+        
+        final String finalSelectedModel = tempModel;
 
         String streamUrl = String.format("%s/%s:streamGenerateContent?key=%s&alt=sse", 
-                baseUrl.replaceAll("/$", ""), selectedModel, apiKey);
+                baseUrl.replaceAll("/$", ""), finalSelectedModel, apiKey);
 
+        if (voiceOutput) {
+            System.out.println("[VOICE] Gemini request started");
+        }
         return webClient.post()
                 .uri(streamUrl)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -163,13 +188,27 @@ public class GeminiProvider implements LLMProvider {
 
                                 if (parts != null && !parts.isEmpty()) {
 
-                                    Object text = parts.get(0).get("text");
+                                    String chunkText = "";
+                                    String chunkAudio = null;
 
-                                    if (text != null && !text.toString().isEmpty()) {
+                                    for (Map<String, Object> part : parts) {
+                                        if (part.containsKey("text") && part.get("text") != null) {
+                                            chunkText += part.get("text").toString();
+                                        }
+                                        if (part.containsKey("inlineData")) {
+                                            Map<String, Object> inlineData = (Map<String, Object>) part.get("inlineData");
+                                            if (inlineData != null && inlineData.containsKey("data") && inlineData.get("data") != null) {
+                                                chunkAudio = inlineData.get("data").toString();
+                                            }
+                                        }
+                                    }
+
+                                    if (!chunkText.isEmpty() || chunkAudio != null) {
                                         LLMResponse.LLMResponseBuilder builder = LLMResponse.builder()
-                                                .content(text.toString())
+                                                .content(chunkText)
+                                                .audioData(chunkAudio)
                                                 .provider("Gemini")
-                                                .model(selectedModel);
+                                                .model(finalSelectedModel);
 
                                         Map<String, Object> usageMetadata =
                                                 (Map<String, Object>) parsed.get("usageMetadata");
@@ -184,6 +223,9 @@ public class GeminiProvider implements LLMProvider {
                                             builder.inputTokens(0).outputTokens(0);
                                         }
 
+                                        if (voiceOutput) {
+                                            System.out.println("[VOICE] Gemini response chunk: hasText=" + !chunkText.isEmpty() + ", hasAudio=" + (chunkAudio != null));
+                                        }
                                         return Flux.just(builder.build());
                                     }
                                 }
@@ -197,7 +239,7 @@ public class GeminiProvider implements LLMProvider {
                                 LLMResponse.LLMResponseBuilder builder = LLMResponse.builder()
                                         .content("")
                                         .provider("Gemini")
-                                        .model(selectedModel);
+                                        .model(finalSelectedModel);
 
                                 Number promptTokensNum = (Number) usageMetadata.get("promptTokenCount");
                                 builder.inputTokens(promptTokensNum != null ? promptTokensNum.intValue() : 0);
@@ -205,6 +247,9 @@ public class GeminiProvider implements LLMProvider {
                                 Number outputTokensNum = (Number) usageMetadata.get("candidatesTokenCount");
                                 builder.outputTokens(outputTokensNum != null ? outputTokensNum.intValue() : 0);
 
+                                if (voiceOutput) {
+                                    System.out.println("[VOICE] Gemini response chunk: hasText=false, hasAudio=false (metadata only)");
+                                }
                                 return Flux.just(builder.build());
                             }
                         }
@@ -217,6 +262,9 @@ public class GeminiProvider implements LLMProvider {
                     }
                 })
                 .onErrorResume(e -> {
+                    if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
+                        System.err.println("Gemini API Error Body: " + ((org.springframework.web.reactive.function.client.WebClientResponseException) e).getResponseBodyAsString());
+                    }
                     System.err.println("SSE Stream error: " + e.getMessage());
                     return Flux.empty();
                 });

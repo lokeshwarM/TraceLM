@@ -53,7 +53,7 @@ public class ConversationService {
         }
     }
 
-    public Map<String, String> processMessage(String prompt, UUID conversationId, String model, String userId) {
+    public Map<String, String> processMessage(String prompt, UUID conversationId, String model, String userId, boolean voiceOutput) {
 
         Conversation conversation;
         if (conversationId != null) {
@@ -90,7 +90,7 @@ public class ConversationService {
         long startTime = System.currentTimeMillis();
         LLMResponse response;
         try {
-            response = llmProvider.generateResponse(contextMessages, model);
+            response = llmProvider.generateResponse(contextMessages, model, voiceOutput);
             long latency = System.currentTimeMillis() - startTime;
 
             loggingService.logInference(
@@ -202,7 +202,7 @@ public class ConversationService {
                     long startTime = System.currentTimeMillis();
                     LLMResponse response;
                     try {
-                        response = llmProvider.generateResponse(contextMessages, model);
+                        response = llmProvider.generateResponse(contextMessages, model, false);
                         long latency = System.currentTimeMillis() - startTime;
                         loggingService.logInference(
                                 conversation.getId(),
@@ -259,7 +259,7 @@ public class ConversationService {
                 .block();
     }
 
-    public Flux<LLMResponse> processMessageStream(String prompt, UUID conversationId, String model, String requestId, String userId) {
+    public Flux<LLMResponse> processMessageStream(String prompt, UUID conversationId, String model, String requestId, String userId, boolean voiceOutput) {
 
         Conversation conversation;
         if (conversationId != null) {
@@ -329,7 +329,7 @@ public class ConversationService {
             activeRequests.put(requestId, cancelSink);
         }
 
-        Flux<LLMResponse> stream = llmProvider.generateStreamResponse(contextMessages, model);
+        Flux<LLMResponse> stream = llmProvider.generateStreamResponse(contextMessages, model, voiceOutput);
         
         if (cancelSink != null) {
             stream = stream.takeUntilOther(cancelSink.asMono());
@@ -338,7 +338,7 @@ public class ConversationService {
         int[] tokenCounts = new int[]{0, 0}; // [input, output]
         boolean[] firstChunk = new boolean[]{true};
 
-        return stream
+        stream = stream
                 .doOnNext(chunk -> {
                     chunk.setConversationId(conversation.getId().toString());
                     if (firstChunk[0] && finalSourcesJsonStream != null) {
@@ -381,7 +381,7 @@ public class ConversationService {
                         messageRepository.save(assistantMessage);
                         System.out.println("[STREAM] Saved message successfully");
                     } catch (Exception e) {
-                        System.err.println("[STREAM] Error in doOnComplete: " + e.getMessage());
+                        System.err.println("[STREAM] Error saving message: " + e.getMessage());
                         e.printStackTrace();
                     }
                 })
@@ -415,9 +415,11 @@ public class ConversationService {
                 .doFinally(signalType -> {
                     System.out.println("[STREAM] doFinally triggered with signal: " + signalType);
                 });
+
+        return stream;
     }
 
-    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models, String requestId, String userId) {
+    public Flux<com.tracelm.backend.dto.CompareResponseChunk> processCompareStream(String prompt, UUID conversationId, List<String> models, String requestId, String userId, boolean voiceOutput) {
         Conversation conversation;
         if (conversationId != null) {
             conversation = conversationRepository.findById(conversationId)
@@ -463,7 +465,7 @@ public class ConversationService {
                     long startTime = System.currentTimeMillis();
                     
                     try {
-                        com.tracelm.backend.dto.LLMResponse response = llmProvider.generateResponse(contextMessages, model);
+                        com.tracelm.backend.dto.LLMResponse response = llmProvider.generateResponse(contextMessages, model, false);
                         long latency = System.currentTimeMillis() - startTime;
 
                         loggingService.logInference(

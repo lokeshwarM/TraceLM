@@ -36,7 +36,7 @@ public class AiPiiRedactionService {
             log.info("Triggering AiPiiRedactionService middleware (Model: {})", MIDDLEWARE_MODEL);
             String prompt = String.format(PROMPT_TEMPLATE, text);
             Message msg = Message.builder().role("USER").content(prompt).build();
-            LLMResponse response = geminiProvider.generateResponse(List.of(msg), MIDDLEWARE_MODEL);
+            LLMResponse response = geminiProvider.generateResponse(List.of(msg), MIDDLEWARE_MODEL, false);
             log.info("AiPiiRedactionService middleware sanitization completed.");
             return response.getContent() != null ? response.getContent().trim() : text;
         } catch (Exception e) {
