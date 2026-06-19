@@ -23,9 +23,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(org.springframework.security.config.Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/google").permitAll()
                 .requestMatchers("/api/auth/otp/**").permitAll()
+                .requestMatchers("/api/auth/**", "/h2-console/**", "/api/test-rag").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )

@@ -40,7 +40,8 @@ public class ChatController {
         return Map.of(
                 "response", response.get("response"),
                 "conversationId", response.get("conversationId"),
-                "model", response.getOrDefault("model", model)
+                "model", response.getOrDefault("model", model),
+                "sources", response.containsKey("sources") ? response.get("sources") : List.of()
         );
     }
 

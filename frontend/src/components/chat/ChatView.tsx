@@ -318,6 +318,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
             if (chunk.inputTokens) msg.inputTokens = chunk.inputTokens;
             if (chunk.outputTokens) msg.outputTokens = chunk.outputTokens;
             if (chunk.model) msg.model = chunk.model;
+            if (chunk.sources) msg.sources = chunk.sources;
             newMessages[msgIndex] = msg;
             
             console.log('[NORMAL MODE] Content appended, total length:', msg.content.length);

@@ -36,6 +36,9 @@ public class Message {
     @Builder.Default
     private boolean piiRedacted = false;
 
+    @Column(name = "sources_json", columnDefinition = "TEXT")
+    private String sourcesJson;
+
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();

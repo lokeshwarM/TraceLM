@@ -15,6 +15,15 @@ export interface MessageResponse {
     content: string;
     createdAt: string;
     piiRedacted?: boolean;
+    sources?: SourceMetadata[];
+}
+
+export interface SourceMetadata {
+    documentName: string;
+    pageNumber: number;
+    similarityScore: number;
+    chunkId: string;
+    documentId: string;
 }
 
 export interface ConversationResponse {

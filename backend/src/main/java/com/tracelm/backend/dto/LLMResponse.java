@@ -22,4 +22,6 @@ public class LLMResponse {
     private String model;
 
     private String conversationId;
+
+    private Object sources;
 }

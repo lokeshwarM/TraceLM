@@ -23,6 +23,7 @@ import reactor.core.publisher.Sinks;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.tracelm.backend.service.PiiRedactionService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +37,8 @@ public class ConversationService {
     private final LoggingService loggingService;
     private final PiiRedactionService piiRedactionService;
     private final PiiPipelineService piiPipelineService;
+    private final RetrievalService retrievalService;
+    private final ObjectMapper objectMapper;
 
     private static final int MAX_CONTEXT_TOKENS = 15000;
     private static final int SAFE_CONTEXT_LIMIT = 13000;
@@ -162,6 +165,38 @@ public class ConversationService {
         MemoryContextResult memory = buildMemoryContext(conversation.getId());
         List<Message> contextMessages = memory.messages;
 
+        String sourcesJson = null;
+        try {
+            var retrievalResult = retrievalService.retrieve(sanitizedPrompt, conversation.getId(), conversation.getUser().getId());
+            if (!retrievalResult.context().isEmpty()) {
+                String augmentedContent = retrievalResult.context() + "\n\nAnswer the following question based on the context above: " + sanitizedPrompt;
+                int tokensAdded = retrievalResult.context().length() / 4;
+                System.out.println("[RAG] Tokens added by retrieval (estimated): " + tokensAdded);
+                System.out.println("[RAG] Final augmented prompt size (characters): " + augmentedContent.length());
+                Message systemMsg = Message.builder()
+                        .role("USER")
+                        .content(augmentedContent)
+                        .build();
+                contextMessages.add(systemMsg);
+                sourcesJson = objectMapper.writeValueAsString(retrievalResult.sources());
+            } else {
+                System.out.println("[RAG] No context retrieved for query.");
+            }
+        } catch (Exception e) {
+            System.err.println("[RAG] Retrieval failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        final String finalSourcesJson = sourcesJson;
+        
+        Object sourcesObj = null;
+        if (sourcesJson != null) {
+            try {
+                sourcesObj = objectMapper.readValue(sourcesJson, Object.class);
+            } catch (Exception e) {}
+        }
+        final Object finalSourcesObj = sourcesObj;
+
         return Flux.fromIterable(models)
                 .flatMap(model -> reactor.core.publisher.Mono.fromCallable(() -> {
                     long startTime = System.currentTimeMillis();
@@ -202,15 +237,23 @@ public class ConversationService {
                             .conversation(conversation)
                             .role("ASSISTANT")
                             .content(response.getContent())
+                            .sourcesJson(finalSourcesJson)
                             .build();
 
                     messageRepository.save(assistantMessage);
+                    
+                    response.setSources(finalSourcesObj);
 
-                    return Map.of(
-                            "response", response.getContent(),
-                            "conversationId", conversation.getId().toString(),
-                            "model", response.getModel()
-                    );
+                    java.util.Map<String, String> responseMap = new java.util.HashMap<>();
+                    responseMap.put("response", response.getContent());
+                    responseMap.put("conversationId", conversation.getId().toString());
+                    responseMap.put("model", response.getModel());
+                    if (response.getSources() != null) {
+                        try {
+                            responseMap.put("sources", objectMapper.writeValueAsString(response.getSources()));
+                        } catch(Exception e) {}
+                    }
+                    return responseMap;
                 }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic()))
                 .collectList()
                 .block();
@@ -250,6 +293,31 @@ public class ConversationService {
         MemoryContextResult memory = buildMemoryContext(conversation.getId());
         List<Message> contextMessages = memory.messages;
 
+        String sourcesJson = null;
+        try {
+            var retrievalResult = retrievalService.retrieve(sanitizedPrompt, conversation.getId(), conversation.getUser().getId());
+            if (!retrievalResult.context().isEmpty()) {
+                String augmentedContent = retrievalResult.context() + "\n\nAnswer the following question based on the context above: " + sanitizedPrompt;
+                int tokensAdded = retrievalResult.context().length() / 4;
+                System.out.println("[RAG] Tokens added by retrieval (estimated): " + tokensAdded);
+                System.out.println("[RAG] Final augmented prompt size (characters): " + augmentedContent.length());
+                Message systemMsg = Message.builder()
+                        .role("USER")
+                        .content(augmentedContent)
+                        .build();
+                contextMessages.add(systemMsg);
+                sourcesJson = objectMapper.writeValueAsString(retrievalResult.sources());
+            } else {
+                System.out.println("[RAG] No context retrieved for query.");
+            }
+        } catch (Exception e) {
+            System.err.println("[RAG] Retrieval failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        final User streamUser = userRepository.findById(conversation.getUser().getId()).orElse(null);
+        final String finalSourcesJsonStream = sourcesJson;
+
         long startTime = System.currentTimeMillis();
         StringBuilder fullResponse = new StringBuilder();
 
@@ -268,10 +336,17 @@ public class ConversationService {
         }
 
         int[] tokenCounts = new int[]{0, 0}; // [input, output]
+        boolean[] firstChunk = new boolean[]{true};
 
         return stream
                 .doOnNext(chunk -> {
                     chunk.setConversationId(conversation.getId().toString());
+                    if (firstChunk[0] && finalSourcesJsonStream != null) {
+                        try {
+                            chunk.setSources(objectMapper.readValue(finalSourcesJsonStream, Object.class));
+                        } catch (Exception e) {}
+                        firstChunk[0] = false;
+                    }
                     fullResponse.append(chunk.getContent());
                     if (chunk.getInputTokens() != null && chunk.getInputTokens() > 0) {
                         tokenCounts[0] = chunk.getInputTokens();
@@ -287,7 +362,7 @@ public class ConversationService {
                         long latency = System.currentTimeMillis() - startTime;
                         loggingService.logInference(
                                 conversation.getId(),
-                                conversation.getUser(),
+                                streamUser,
                                 "Gemini",
                                 selectedModel,
                                 latency,
@@ -300,6 +375,7 @@ public class ConversationService {
                                 .conversation(conversation)
                                 .role("ASSISTANT")
                                 .content(fullResponse.toString())
+                                .sourcesJson(finalSourcesJsonStream)
                                 .build();
 
                         messageRepository.save(assistantMessage);
@@ -310,23 +386,31 @@ public class ConversationService {
                     }
                 })
                 .doOnError(e -> {
-                    loggingService.logInference(
-                            conversation.getId(),
-                            conversation.getUser(),
-                            "Gemini",
-                            selectedModel,
-                            0L,
-                            0,
-                            0,
-                            "FAILED"
-                    );
+                    try {
+                        loggingService.logInference(
+                                conversation.getId(),
+                                streamUser,
+                                "Gemini",
+                                selectedModel,
+                                0L,
+                                0,
+                                0,
+                                "FAILED"
+                        );
+                    } catch (Exception ex) {
+                        System.err.println("[STREAM] Error in doOnError: " + ex.getMessage());
+                    }
                 })
                 .doOnCancel(() -> {
-                    if (requestId != null) activeRequests.remove(requestId);
-                    loggingService.logInference(
-                            conversation.getId(), conversation.getUser(), "Gemini", selectedModel, 0L, 0, 0, "CANCELLED"
-                    );
-                    System.out.println("[STREAM] doOnCancel triggered");
+                    try {
+                        if (requestId != null) activeRequests.remove(requestId);
+                        loggingService.logInference(
+                                conversation.getId(), streamUser, "Gemini", selectedModel, 0L, 0, 0, "CANCELLED"
+                        );
+                        System.out.println("[STREAM] doOnCancel triggered");
+                    } catch (Exception ex) {
+                        System.err.println("[STREAM] Error in doOnCancel: " + ex.getMessage());
+                    }
                 })
                 .doFinally(signalType -> {
                     System.out.println("[STREAM] doFinally triggered with signal: " + signalType);
@@ -371,6 +455,8 @@ public class ConversationService {
             activeRequests.put(requestId, cancelSink);
         }
 
+        final User streamUser = userRepository.findById(conversation.getUser().getId()).orElse(null);
+
         Flux<com.tracelm.backend.dto.CompareResponseChunk> stream = Flux.fromIterable(models)
                 .flatMap(model -> reactor.core.publisher.Mono.fromCallable(() -> {
                     String selectedModel = normalizeModel(model);
@@ -381,7 +467,7 @@ public class ConversationService {
                         long latency = System.currentTimeMillis() - startTime;
 
                         loggingService.logInference(
-                                conversation.getId(), conversation.getUser(), "Gemini", selectedModel, latency,
+                                conversation.getId(), streamUser, "Gemini", selectedModel, latency,
                                 response.getInputTokens(), response.getOutputTokens(), "SUCCESS"
                         );
 
@@ -402,9 +488,13 @@ public class ConversationService {
                                 .conversationId(conversation.getId().toString())
                                 .build();
                     } catch (Exception e) {
-                        loggingService.logInference(
-                                conversation.getId(), conversation.getUser(), "Gemini", selectedModel, 0L, 0, 0, "FAILED"
-                        );
+                        try {
+                            loggingService.logInference(
+                                    conversation.getId(), streamUser, "Gemini", selectedModel, 0L, 0, 0, "FAILED"
+                            );
+                        } catch (Exception ex) {
+                            System.err.println("[COMPARE] Error in catch: " + ex.getMessage());
+                        }
                         return com.tracelm.backend.dto.CompareResponseChunk.builder()
                                 .model(selectedModel)
                                 .content("")
@@ -424,7 +514,15 @@ public class ConversationService {
                     if (requestId != null) activeRequests.remove(requestId);
                 })
                 .doOnCancel(() -> {
-                    if (requestId != null) activeRequests.remove(requestId);
+                    try {
+                        if (requestId != null) activeRequests.remove(requestId);
+                        System.out.println("[STREAM_COMPARE] doOnCancel triggered");
+                    } catch (Exception ex) {
+                        System.err.println("[STREAM_COMPARE] Error in doOnCancel: " + ex.getMessage());
+                    }
+                })
+                .doFinally(signalType -> {
+                    System.out.println("[STREAM_COMPARE] doFinally triggered with signal: " + signalType);
                 });
     }
 
@@ -448,13 +546,22 @@ public class ConversationService {
         List<MessageResponse> messages =
                 messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId)
                         .stream()
-                        .map(message -> MessageResponse.builder()
-                                .id(message.getId())
-                                .role(message.getRole())
-                                .content(message.getContent())
-                                .createdAt(message.getCreatedAt())
-                                .piiRedacted(message.isPiiRedacted())
-                                .build())
+                        .map(message -> {
+                            Object sourcesObj = null;
+                            if (message.getSourcesJson() != null) {
+                                try {
+                                    sourcesObj = objectMapper.readValue(message.getSourcesJson(), Object.class);
+                                } catch (Exception e) {}
+                            }
+                            return MessageResponse.builder()
+                                    .id(message.getId())
+                                    .role(message.getRole())
+                                    .content(message.getContent())
+                                    .createdAt(message.getCreatedAt())
+                                    .piiRedacted(message.isPiiRedacted())
+                                    .sources(sourcesObj)
+                                    .build();
+                        })
                         .toList();
 
         return ConversationResponse.builder()

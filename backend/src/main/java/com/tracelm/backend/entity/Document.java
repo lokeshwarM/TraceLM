@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -48,6 +50,10 @@ public class Document {
 
     @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedAt;
+
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<DocumentChunk> chunks = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {

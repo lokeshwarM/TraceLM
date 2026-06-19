@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.tracelm.backend.provider.EmbeddingProvider;
+import com.tracelm.backend.repository.DocumentChunkRepository;
+import com.tracelm.backend.entity.DocumentChunk;
+
 @Service
 @RequiredArgsConstructor
 public class DocumentService {
@@ -22,6 +26,9 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final DocumentExtractionService extractionService;
+    private final DocumentChunker documentChunker;
+    private final EmbeddingProvider embeddingProvider;
+    private final DocumentChunkRepository documentChunkRepository;
 
     private static final long MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
@@ -55,11 +62,28 @@ public class DocumentService {
             var result = extractionService.extractText(file);
             document.setExtractedText(result.text());
             document.setPageCount(result.pageCount());
+            
+            document = documentRepository.save(document);
+
+            List<DocumentChunker.ChunkResult> chunks = documentChunker.chunkDocument(result.pages());
+            for (DocumentChunker.ChunkResult chunk : chunks) {
+                float[] embedding = embeddingProvider.generateEmbedding(chunk.content());
+                DocumentChunk docChunk = DocumentChunk.builder()
+                        .document(document)
+                        .chunkIndex(chunk.chunkIndex())
+                        .pageNumber(chunk.pageNumber())
+                        .content(chunk.content())
+                        .embedding(embedding)
+                        .build();
+                documentChunkRepository.save(docChunk);
+            }
+
+            document.setChunkCount(chunks.size());
             document.setDocumentStatus(DocumentStatus.READY);
-        } catch (IOException e) {
+        } catch (Exception e) {
             document.setDocumentStatus(DocumentStatus.FAILED);
             documentRepository.save(document);
-            throw new RuntimeException("Failed to extract text from PDF: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to process document: " + e.getMessage(), e);
         }
 
         document = documentRepository.save(document);
