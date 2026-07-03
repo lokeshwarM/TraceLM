@@ -569,3 +569,23 @@ export const unsaveJob = async (jobId: string): Promise<void> => {
         throw new Error('Failed to unsave job');
     }
 };
+
+export const getSavedJobs = async (): Promise<any[]> => {
+    const token = await getToken();
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/automation/jobs/saved`, {
+        method: 'GET',
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to get saved jobs');
+    }
+    return response.json();
+};

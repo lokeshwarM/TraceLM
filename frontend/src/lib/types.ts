@@ -127,3 +127,8 @@ export interface JobListing {
     postedDate: string;
 }
 
+export interface SavedJob {
+    id: string;
+    job: JobListing;
+    savedAt: string;
+}
