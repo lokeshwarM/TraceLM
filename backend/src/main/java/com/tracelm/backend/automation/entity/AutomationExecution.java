@@ -33,7 +33,7 @@ public class AutomationExecution {
     @Column(name = "finished_at")
     private LocalDateTime finishedAt;
 
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "created_by")
     private String createdBy;
 
     @JdbcTypeCode(SqlTypes.JSON)
