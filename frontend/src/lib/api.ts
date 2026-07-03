@@ -589,3 +589,43 @@ export const getSavedJobs = async (): Promise<any[]> => {
     }
     return response.json();
 };
+
+export interface CareerProfile {
+  id?: string;
+  userId?: string;
+  fullName: string;
+  headline: string;
+  yearsOfExperience: number;
+  preferredRoles: string[];
+  skills: string[];
+  preferredLocations: string[];
+  remoteOnly: boolean;
+  minimumSalary: number;
+  preferredEmploymentTypes: string[];
+  preferredCompanies: string[];
+  excludedKeywords: string[];
+}
+
+export const getCareerProfile = async (): Promise<CareerProfile> => {
+    const token = await getToken();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}/automation/career/profile`, { method: 'GET', headers });
+    if (!response.ok) throw new Error('Failed to get career profile');
+    return response.json();
+};
+
+export const updateCareerProfile = async (profile: CareerProfile): Promise<CareerProfile> => {
+    const token = await getToken();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}/automation/career/profile`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(profile)
+    });
+    if (!response.ok) throw new Error('Failed to update career profile');
+    return response.json();
+};
