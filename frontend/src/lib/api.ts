@@ -629,3 +629,27 @@ export const updateCareerProfile = async (profile: CareerProfile): Promise<Caree
     if (!response.ok) throw new Error('Failed to update career profile');
     return response.json();
 };
+
+export const refreshCareerFeed = async (): Promise<any[]> => {
+    const token = await getToken();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_BASE_URL}/automation/career/feed/refresh`, {
+        method: 'POST',
+        headers
+    });
+    
+    if (!response.ok) {
+        let errorMsg = 'Failed to refresh career feed';
+        try {
+            const errData = await response.json();
+            if (errData && errData.message) errorMsg = errData.message;
+            else if (typeof errData === 'string') errorMsg = errData;
+        } catch (e) {
+            // ignore
+        }
+        throw new Error(errorMsg);
+    }
+    return response.json();
+};
