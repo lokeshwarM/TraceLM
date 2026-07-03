@@ -1,5 +1,6 @@
 package com.tracelm.backend.automation.workflow;
 
 public interface AutomationWorkflow {
-    void execute(AutomationWorkflowContext context);
+    String getName();
+    WorkflowResult execute(AutomationWorkflowContext context);
 }
