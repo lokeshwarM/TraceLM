@@ -9,6 +9,7 @@ export function ConversationSidebar() {
   const pathname = usePathname();
   const params = useParams();
   const isDashboard = pathname === '/dashboard';
+  const isAutomation = pathname.startsWith('/automation');
   const isMemory = pathname.startsWith('/memory');
   const isDocuments = pathname.startsWith('/documents');
   const { conversations } = useConversations();
@@ -31,7 +32,7 @@ export function ConversationSidebar() {
       </div>
 
       <div className="px-3 pb-4 pt-1 border-b border-gray-800/60">
-        <Link href="/chat" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors mb-1 ${(!isDashboard && !isMemory && !isDocuments) ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
+        <Link href="/chat" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors mb-1 ${(!isDashboard && !isAutomation && !isMemory && !isDocuments) ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
@@ -49,11 +50,17 @@ export function ConversationSidebar() {
             </svg>
             <span className="font-medium">Documents</span>
         </Link>
-        <Link href="/dashboard" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isDashboard ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
+        <Link href="/dashboard" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors mb-1 ${isDashboard ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
             <span className="font-medium">Dashboard</span>
+        </Link>
+        <Link href="/automation" className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${isAutomation ? 'bg-[#1a1d27] text-white border border-gray-700/50' : 'text-gray-400 hover:bg-[#1a1d27] hover:text-white border border-transparent'}`}>
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            <span className="font-medium">Automation</span>
         </Link>
       </div>
       
