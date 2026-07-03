@@ -24,9 +24,7 @@ public class SavedJobService {
     private final JobRepository jobRepository;
 
     @Transactional
-    public SavedJobDto saveJob(UUID jobId) {
-        // We assume userId is null for now
-        UUID currentUserId = null;
+    public SavedJobDto saveJob(UUID jobId, UUID currentUserId) {
 
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
@@ -49,8 +47,7 @@ public class SavedJobService {
     }
 
     @Transactional
-    public void unsaveJob(UUID jobId) {
-        UUID currentUserId = null;
+    public void unsaveJob(UUID jobId, UUID currentUserId) {
         
         if (!jobRepository.existsById(jobId)) {
             throw new RuntimeException("Job not found");
@@ -60,8 +57,7 @@ public class SavedJobService {
     }
 
     @Transactional(readOnly = true)
-    public List<SavedJobDto> getSavedJobs() {
-        UUID currentUserId = null;
+    public List<SavedJobDto> getSavedJobs(UUID currentUserId) {
         
         return savedJobRepository.findByUserIdOrderBySavedAtDesc(currentUserId).stream()
                 .map(this::mapToDto)

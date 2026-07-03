@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,9 +21,10 @@ public class SavedJobController {
     private final SavedJobService savedJobService;
 
     @PostMapping("/{jobId}/save")
-    public ResponseEntity<SavedJobDto> saveJob(@PathVariable UUID jobId) {
+    public ResponseEntity<SavedJobDto> saveJob(@PathVariable UUID jobId, Principal principal) {
         try {
-            SavedJobDto savedJob = savedJobService.saveJob(jobId);
+            UUID userId = UUID.fromString(principal.getName());
+            SavedJobDto savedJob = savedJobService.saveJob(jobId, userId);
             return ResponseEntity.ok(savedJob);
         } catch (RuntimeException e) {
             if ("Job not found".equals(e.getMessage())) {
@@ -34,9 +36,10 @@ public class SavedJobController {
     }
 
     @DeleteMapping("/{jobId}/save")
-    public ResponseEntity<Void> unsaveJob(@PathVariable UUID jobId) {
+    public ResponseEntity<Void> unsaveJob(@PathVariable UUID jobId, Principal principal) {
         try {
-            savedJobService.unsaveJob(jobId);
+            UUID userId = UUID.fromString(principal.getName());
+            savedJobService.unsaveJob(jobId, userId);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             if ("Job not found".equals(e.getMessage())) {
@@ -48,9 +51,10 @@ public class SavedJobController {
     }
 
     @GetMapping("/saved")
-    public ResponseEntity<List<SavedJobDto>> getSavedJobs() {
+    public ResponseEntity<List<SavedJobDto>> getSavedJobs(Principal principal) {
         try {
-            List<SavedJobDto> savedJobs = savedJobService.getSavedJobs();
+            UUID userId = UUID.fromString(principal.getName());
+            List<SavedJobDto> savedJobs = savedJobService.getSavedJobs(userId);
             return ResponseEntity.ok(savedJobs);
         } catch (Exception e) {
             log.error("Error fetching saved jobs: {}", e.getMessage(), e);

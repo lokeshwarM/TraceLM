@@ -14,11 +14,13 @@ public class JobSearchRequest {
     private String keyword;
     private String location;
     private String experience;
-    private boolean remoteOnly;
+    @Builder.Default
+    private Boolean remoteOnly = false;
+    @Builder.Default
     @Min(value = 0, message = "Page must be zero or positive")
-    private int page;
+    private Integer page = 0;
     
     @Builder.Default
     @Min(value = 1, message = "PageSize must be greater than zero")
-    private int pageSize = 10;
+    private Integer pageSize = 10;
 }
