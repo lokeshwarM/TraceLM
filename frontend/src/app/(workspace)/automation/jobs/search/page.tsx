@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { searchJobs } from '@/lib/api';
+import { searchJobs, saveJob, unsaveJob } from '@/lib/api';
 import { JobListing } from '@/lib/types';
 
 export default function JobSearchPage() {
@@ -13,6 +13,9 @@ export default function JobSearchPage() {
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [savedJobIds, setSavedJobIds] = useState<Record<string, boolean>>({});
+  const [savingJobIds, setSavingJobIds] = useState<Record<string, boolean>>({});
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +30,30 @@ export default function JobSearchPage() {
       setJobs([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleSave = async (jobId: string) => {
+    if (savingJobIds[jobId]) return;
+
+    const isCurrentlySaved = !!savedJobIds[jobId];
+    
+    // Optimistic UI Update
+    setSavedJobIds(prev => ({ ...prev, [jobId]: !isCurrentlySaved }));
+    setSavingJobIds(prev => ({ ...prev, [jobId]: true }));
+
+    try {
+      if (isCurrentlySaved) {
+        await unsaveJob(jobId);
+      } else {
+        await saveJob(jobId);
+      }
+    } catch (err) {
+      // Revert optimistic update on failure
+      setSavedJobIds(prev => ({ ...prev, [jobId]: isCurrentlySaved }));
+      // Optional: show a toast notification here
+    } finally {
+      setSavingJobIds(prev => ({ ...prev, [jobId]: false }));
     }
   };
 
@@ -147,13 +174,35 @@ export default function JobSearchPage() {
               {jobs.map((job) => (
                 <div key={job.jobId} className="flex flex-col h-full bg-[#161921] border border-gray-800/60 rounded-2xl p-6 shadow-lg hover:border-gray-700 transition-colors">
                   <div className="flex justify-between items-start mb-4">
-                    <div>
+                    <div className="pr-4">
                       <h3 className="text-lg font-semibold text-white line-clamp-2">{job.title}</h3>
                       <p className="text-blue-400 text-sm font-medium mt-1">{job.company}</p>
                     </div>
-                    <span className="px-2.5 py-1 bg-gray-800 text-xs font-medium text-gray-300 rounded-full shrink-0 ml-4 border border-gray-700/50">
-                      {job.provider}
-                    </span>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="px-2.5 py-1 bg-gray-800 text-xs font-medium text-gray-300 rounded-full border border-gray-700/50">
+                        {job.provider}
+                      </span>
+                      <button
+                        onClick={() => handleToggleSave(job.jobId)}
+                        disabled={savingJobIds[job.jobId]}
+                        className={`p-2 rounded-lg transition-all ${
+                          savedJobIds[job.jobId] 
+                            ? 'text-blue-400 bg-blue-500/10 hover:bg-blue-500/20' 
+                            : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                        } ${savingJobIds[job.jobId] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={savedJobIds[job.jobId] ? "Unsave Job" : "Save Job"}
+                      >
+                        {savedJobIds[job.jobId] ? (
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2 mb-6 flex-1">

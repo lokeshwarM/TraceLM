@@ -509,6 +509,7 @@ export async function getMe(): Promise<{ id: string, name: string, email: string
     return handleResponse<{ id: string, name: string, email: string }>(response);
 }
 
+
 export const searchJobs = async (request: any): Promise<any[]> => {
     const token = await getToken();
     const headers: HeadersInit = {
@@ -528,4 +529,43 @@ export const searchJobs = async (request: any): Promise<any[]> => {
         throw new Error('Failed to search jobs');
     }
     return response.json();
+};
+
+export const saveJob = async (jobId: string): Promise<any> => {
+    const token = await getToken();
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/automation/jobs/${jobId}/save`, {
+        method: 'POST',
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to save job');
+    }
+    return response.json();
+};
+
+export const unsaveJob = async (jobId: string): Promise<void> => {
+    const token = await getToken();
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/automation/jobs/${jobId}/save`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to unsave job');
+    }
 };
