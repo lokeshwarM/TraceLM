@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class JobSearchService {
 
     private final JobProviderRegistry providerRegistry;
+    private final JobPersistenceService jobPersistenceService;
 
     public List<JobListing> searchJobs(JobSearchRequest request) {
         List<JobProvider> providers = providerRegistry.getAllProviders();
@@ -36,7 +37,7 @@ public class JobSearchService {
             }
         }
 
-        return uniqueJobs.values().stream()
+        List<JobListing> finalResults = uniqueJobs.values().stream()
                 .sorted((j1, j2) -> {
                     if (j1.getPostedDate() == null && j2.getPostedDate() == null) return 0;
                     if (j1.getPostedDate() == null) return 1;
@@ -44,5 +45,15 @@ public class JobSearchService {
                     return j2.getPostedDate().compareTo(j1.getPostedDate());
                 })
                 .collect(Collectors.toList());
+
+        for (JobListing job : finalResults) {
+            try {
+                jobPersistenceService.saveOrUpdateJob(job);
+            } catch (Exception e) {
+                log.error("Failed to persist job {} from {}: {}", job.getJobId(), job.getProvider(), e.getMessage());
+            }
+        }
+
+        return finalResults;
     }
 }
