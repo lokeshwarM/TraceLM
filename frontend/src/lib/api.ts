@@ -508,3 +508,24 @@ export async function getMe(): Promise<{ id: string, name: string, email: string
     
     return handleResponse<{ id: string, name: string, email: string }>(response);
 }
+
+export const searchJobs = async (request: any): Promise<any[]> => {
+    const token = await getToken();
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/automation/jobs/search`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to search jobs');
+    }
+    return response.json();
+};

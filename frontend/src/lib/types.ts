@@ -103,3 +103,27 @@ export interface DocumentResponse {
     documentStatus: string;
     uploadedAt: string;
 }
+
+export interface JobSearchRequest {
+    keyword?: string;
+    location?: string;
+    experience?: string;
+    remoteOnly?: boolean;
+    page?: number;
+    pageSize?: number;
+}
+
+export interface JobListing {
+    jobId: string;
+    title: string;
+    company: string;
+    location: string;
+    employmentType: string;
+    experienceLevel: string;
+    salary: string;
+    jobUrl: string;
+    provider: string;
+    description: string;
+    postedDate: string;
+}
+
