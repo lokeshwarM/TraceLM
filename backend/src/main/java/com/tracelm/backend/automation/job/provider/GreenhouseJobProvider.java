@@ -1,5 +1,6 @@
 package com.tracelm.backend.automation.job.provider;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.tracelm.backend.automation.job.dto.JobListing;
 import com.tracelm.backend.automation.job.dto.JobSearchRequest;
 import lombok.Data;
@@ -23,15 +24,15 @@ public class GreenhouseJobProvider implements JobProvider {
 
     private final WebClient webClient;
     private final String baseUrl;
-    private final String boardToken;
+    private final List<String> boards;
 
     public GreenhouseJobProvider(
             WebClient.Builder webClientBuilder,
             @Value("${automation.providers.greenhouse.url:https://boards-api.greenhouse.io/v1/boards}") String baseUrl,
-            @Value("${automation.providers.greenhouse.board-token:github}") String boardToken) {
+            @Value("${automation.greenhouse.boards:#{null}}") List<String> boards) {
         this.webClient = webClientBuilder.baseUrl(baseUrl).build();
         this.baseUrl = baseUrl;
-        this.boardToken = boardToken;
+        this.boards = boards;
     }
 
     @Override
@@ -41,9 +42,27 @@ public class GreenhouseJobProvider implements JobProvider {
 
     @Override
     public List<JobListing> searchJobs(JobSearchRequest request) {
+        if (boards == null || boards.isEmpty() || (boards.size() == 1 && boards.get(0).trim().isEmpty())) {
+            log.warn("No Greenhouse boards configured. Skipping Greenhouse job fetch.");
+            return Collections.emptyList();
+        }
+
+        List<JobListing> allJobs = new ArrayList<>();
+
+        for (String board : boards) {
+            List<JobListing> boardJobs = fetchJobsForBoard(board);
+            allJobs.addAll(boardJobs);
+        }
+
+        return allJobs.stream()
+                .filter(job -> matchesFilter(job, request))
+                .collect(Collectors.toList());
+    }
+
+    private List<JobListing> fetchJobsForBoard(String board) {
         try {
             GreenhouseResponse response = webClient.get()
-                    .uri("/{boardToken}/jobs?content=true", boardToken)
+                    .uri("/{board}/jobs?content=true", board)
                     .retrieve()
                     .bodyToMono(GreenhouseResponse.class)
                     .block();
@@ -53,12 +72,14 @@ public class GreenhouseJobProvider implements JobProvider {
             }
 
             return response.getJobs().stream()
-                    .map(this::mapToJobListing)
-                    .filter(job -> matchesFilter(job, request))
+                    .map(job -> mapToJobListing(job, board))
                     .collect(Collectors.toList());
 
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException.NotFound e) {
+            log.warn("Greenhouse board '{}' returned 404 Not Found. Skipping...", board);
+            return Collections.emptyList();
         } catch (Exception e) {
-            log.error("Failed to fetch jobs from Greenhouse API for board: {}", boardToken, e);
+            log.error("Failed to fetch jobs from Greenhouse API for board: {}", board, e);
             return Collections.emptyList();
         }
     }
@@ -80,7 +101,7 @@ public class GreenhouseJobProvider implements JobProvider {
         return true;
     }
 
-    private JobListing mapToJobListing(GreenhouseJob gJob) {
+    private JobListing mapToJobListing(GreenhouseJob gJob, String board) {
         String location = gJob.getLocation() != null ? gJob.getLocation().getName() : "Unknown";
         String description = gJob.getContent() != null ? gJob.getContent() : "";
 
@@ -96,7 +117,7 @@ public class GreenhouseJobProvider implements JobProvider {
         return JobListing.builder()
                 .jobId(String.valueOf(gJob.getId()))
                 .title(gJob.getTitle())
-                .company(boardToken)
+                .company(board)
                 .location(location)
                 .employmentType("Full-Time") // Greenhouse API does not always expose this natively in standard list
                 .experienceLevel("Any")
@@ -109,11 +130,13 @@ public class GreenhouseJobProvider implements JobProvider {
     }
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     private static class GreenhouseResponse {
         private List<GreenhouseJob> jobs;
     }
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     private static class GreenhouseJob {
         private long id;
         private String title;
@@ -124,6 +147,7 @@ public class GreenhouseJobProvider implements JobProvider {
     }
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     private static class GreenhouseLocation {
         private String name;
     }

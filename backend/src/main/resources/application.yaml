@@ -48,3 +48,7 @@ gemini:
   api-key: ${GEMINI_API_KEY}
   base-url: https://generativelanguage.googleapis.com/v1beta/models
   default-model: gemini-3.1-flash-lite
+
+automation:
+  greenhouse:
+    boards: openai,stripe,vercel,figma,scaleai,anthropic,perplexity
