@@ -3,32 +3,55 @@
 import React from 'react';
 import Link from 'next/link';
 
-export default function AutomationDashboardPage() {
+export default function CareerAutomationDashboardPage() {
   const cards = [
     {
-      title: 'Career Automation',
-      description: 'Automate your job search, match listings to your resume, track applications, and optimize your profile.',
+      title: 'Career Feed',
+      description: 'Discover opportunities automatically matched to your preferences.',
       icon: (
         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
       ),
       clickable: true,
-      href: '/automation/career',
+      href: '/automation/career/feed',
     },
     {
-      title: 'Workflows',
-      description: 'Design, chain, and execute multi-step automated pipelines across your tools.',
+      title: 'Job Search',
+      description: 'Search for jobs across multiple providers with a unified interface.',
       icon: (
         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       ),
-      clickable: false,
+      clickable: true,
+      href: '/automation/jobs/search',
     },
     {
-      title: 'Document Automation',
-      description: 'Extract text, classify documents, and summarize files automatically using pre-built pipelines.',
+      title: 'Saved Jobs',
+      description: 'Manage and track all your saved job opportunities.',
+      icon: (
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+        </svg>
+      ),
+      clickable: true,
+      href: '/automation/jobs/saved',
+    },
+    {
+      title: 'Career Profile',
+      description: 'Configure your preferences, upload resume PDF, and add notes for personalized matching.',
+      icon: (
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      clickable: true,
+      href: '/automation/career/profile',
+    },
+    {
+      title: 'Resume Builder',
+      description: 'Automatically tailor and generate resumes based on job descriptions.',
       icon: (
         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -37,8 +60,8 @@ export default function AutomationDashboardPage() {
       clickable: false,
     },
     {
-      title: 'Email Automation',
-      description: 'Monitor inboxes, auto-draft replies, and trigger follow-ups with intelligent LLM middleware.',
+      title: 'Applications',
+      description: 'Track the status of your automated job applications.',
       icon: (
         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -50,9 +73,19 @@ export default function AutomationDashboardPage() {
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto bg-[#0a0b0e]">
-      <header className="w-full pt-10 pb-8 px-8 sm:px-10 lg:px-12 shrink-0 border-b border-gray-800/40 bg-[#0f1115]/80 backdrop-blur-sm sticky top-0 z-10">
-        <h1 className="text-3xl font-bold text-white tracking-tight">Automation</h1>
-        <p className="text-gray-400 text-sm mt-2">Select an automation suite to configure and run pipelines.</p>
+      <header className="w-full pt-10 pb-8 px-8 sm:px-10 lg:px-12 shrink-0 border-b border-gray-800/40 bg-[#0f1115]/80 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+        <div>
+          <div className="flex items-center space-x-2 text-sm text-blue-400 mb-2">
+            <Link href="/automation" className="hover:underline flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Automations
+            </Link>
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Career Automation</h1>
+          <p className="text-gray-400 text-sm mt-2">Manage your personalized job feeds, searches, matches, and profile.</p>
+        </div>
       </header>
 
       <main className="w-full max-w-7xl mx-auto flex-1 flex flex-col px-8 sm:px-10 lg:px-12 py-10">

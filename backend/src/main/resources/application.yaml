@@ -5,9 +5,10 @@ spring:
     import: optional:file:.env[.properties]
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/tracelm
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
@@ -51,4 +52,6 @@ gemini:
 
 automation:
   greenhouse:
-    boards: openai,stripe,vercel,figma,scaleai,anthropic,perplexity
+    boards: stripe,vercel,figma,scaleai,anthropic,razorpay,inmobi,phonepe,makemytrip,groww,urbancompany,browserstack,cred,swiggy
+  lever:
+    boards: netflix,lever,leverdemo,unacademy,curefit,zeta,upgrad,cleartax

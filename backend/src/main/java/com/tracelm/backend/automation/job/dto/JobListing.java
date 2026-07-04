@@ -23,4 +23,5 @@ public class JobListing {
     private String provider;
     private String description;
     private LocalDateTime postedDate;
+    private Integer matchScore;
 }

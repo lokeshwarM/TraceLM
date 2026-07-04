@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { CareerProfile, getCareerProfile, updateCareerProfile } from '@/lib/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { CareerProfile, getCareerProfile, updateCareerProfile, uploadCareerResume } from '@/lib/api';
 
 const TagInput = ({ label, value, onChange }: { label: string, value: string[], onChange: (val: string[]) => void }) => {
   const [inputValue, setInputValue] = useState('');
@@ -50,6 +50,8 @@ export default function CareerProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadProfile();
@@ -65,6 +67,33 @@ export default function CareerProfilePage() {
       setError(err.message || 'Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('Only PDF files are supported.');
+      return;
+    }
+
+    setUploadingResume(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const updatedProfile = await uploadCareerResume(file);
+      setProfile(updatedProfile);
+      setSuccess('Resume uploaded and parsed successfully!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload resume.');
+    } finally {
+      setUploadingResume(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -191,6 +220,70 @@ export default function CareerProfilePage() {
                     value={profile.minimumSalary || 0}
                     onChange={handleChange}
                     className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Resume & AI Matcher Preferences */}
+            <div className="space-y-6 pt-4">
+              <h2 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Resume & AI Matching</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Resume Upload */}
+                <div className="flex flex-col space-y-2 bg-[#0a0b0e] p-5 rounded-xl border border-gray-800/80">
+                  <label className="text-sm font-medium text-gray-300">Resume PDF</label>
+                  <p className="text-xs text-gray-500">Upload your resume to calculate personalized match scores against job boards.</p>
+                  
+                  <div className="flex items-center space-x-4 mt-2">
+                    <input 
+                      type="file" 
+                      accept=".pdf" 
+                      className="hidden" 
+                      ref={fileInputRef}
+                      onChange={handleResumeUpload}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingResume}
+                      className="flex items-center space-x-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border border-blue-500/20 px-4 py-2.5 rounded-xl transition-colors font-medium text-sm disabled:opacity-50"
+                    >
+                      {uploadingResume ? (
+                        <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin"></div>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                      )}
+                      <span>{uploadingResume ? 'Processing...' : 'Upload PDF Resume'}</span>
+                    </button>
+                    
+                    {profile.resumeFileName ? (
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm text-gray-300 font-medium truncate">{profile.resumeFileName}</span>
+                        <span className="text-xs text-green-400 font-semibold flex items-center mt-0.5">
+                          <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Parsed & Active
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-500 italic">No resume uploaded yet</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional preferences notes */}
+                <div className="flex flex-col space-y-2">
+                  <label className="text-sm font-medium text-gray-300">Additional Preferences & Notes</label>
+                  <p className="text-xs text-gray-500">Explain what you are looking for in your own words. The AI will factor this into the job match score.</p>
+                  <textarea
+                    name="additionalNotes"
+                    value={profile.additionalNotes || ''}
+                    onChange={(e) => setProfile(prev => prev ? { ...prev, additionalNotes: e.target.value } : null)}
+                    placeholder="e.g. I prefer modern tech stacks using Next.js and Go. I'm looking for a collaborative team environment and want to avoid finance/crypto domains."
+                    rows={4}
+                    className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 resize-none text-sm placeholder:text-gray-600 mt-1"
                   />
                 </div>
               </div>

@@ -125,6 +125,7 @@ export interface JobListing {
     provider: string;
     description: string;
     postedDate: string;
+    matchScore?: number;
 }
 
 export interface SavedJob {

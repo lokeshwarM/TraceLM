@@ -23,4 +23,7 @@ public class CareerProfileDto {
     private List<String> preferredEmploymentTypes = new ArrayList<>();
     private List<String> preferredCompanies = new ArrayList<>();
     private List<String> excludedKeywords = new ArrayList<>();
+    private String resumeFileName = "";
+    private String resumeContent = "";
+    private String additionalNotes = "";
 }

@@ -54,6 +54,17 @@ public class CareerProfile {
     @CollectionTable(name = "career_profile_excluded_keywords")
     private List<String> excludedKeywords = new ArrayList<>();
 
+    @Column(name = "resume_file_name")
+    private String resumeFileName;
+
+    @Lob
+    @Column(name = "resume_content", columnDefinition = "TEXT")
+    private String resumeContent;
+
+    @Lob
+    @Column(name = "additional_notes", columnDefinition = "TEXT")
+    private String additionalNotes;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

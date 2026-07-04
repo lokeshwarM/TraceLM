@@ -604,6 +604,9 @@ export interface CareerProfile {
   preferredEmploymentTypes: string[];
   preferredCompanies: string[];
   excludedKeywords: string[];
+  resumeFileName?: string;
+  resumeContent?: string;
+  additionalNotes?: string;
 }
 
 export const getCareerProfile = async (): Promise<CareerProfile> => {
@@ -651,5 +654,22 @@ export const refreshCareerFeed = async (): Promise<any[]> => {
         }
         throw new Error(errorMsg);
     }
+    return response.json();
+};
+
+export const uploadCareerResume = async (file: File): Promise<CareerProfile> => {
+    const token = await getToken();
+    const headers: HeadersInit = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/automation/career/profile/resume`, {
+        method: 'POST',
+        headers,
+        body: formData
+    });
+    if (!response.ok) throw new Error('Failed to upload resume');
     return response.json();
 };

@@ -164,6 +164,25 @@ export default function CareerFeedPage() {
                         Posted {new Date(job.postedDate).toLocaleDateString()}
                       </div>
                     )}
+                    
+                    {job.matchScore !== undefined && (
+                      <div className="mt-4 pt-3 border-t border-gray-800/30">
+                        <div className="flex justify-between items-center text-xs font-semibold mb-1">
+                          <span className="text-gray-400">Profile Match Score</span>
+                          <span className={job.matchScore >= 80 ? 'text-green-400 font-bold' : job.matchScore >= 55 ? 'text-yellow-400' : 'text-red-400'}>
+                            {job.matchScore}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-[#0a0b0e] rounded-full h-1.5 overflow-hidden">
+                          <div 
+                            className={`h-1.5 rounded-full transition-all duration-500 ${
+                              job.matchScore >= 80 ? 'bg-green-500' : job.matchScore >= 55 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${job.matchScore}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-4 border-t border-gray-800/60 mt-auto flex items-center justify-between">

@@ -5,6 +5,7 @@ import com.tracelm.backend.automation.career.service.CareerProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/automation/career/profile")
@@ -21,5 +22,10 @@ public class CareerProfileController {
     @PutMapping
     public ResponseEntity<CareerProfileDto> updateProfile(@RequestBody CareerProfileDto dto) {
         return ResponseEntity.ok(service.updateProfile(dto));
+    }
+
+    @PostMapping("/resume")
+    public ResponseEntity<CareerProfileDto> uploadResume(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(service.uploadResume(file));
     }
 }
