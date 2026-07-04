@@ -23,12 +23,12 @@ const TagInput = ({ label, value, onChange }: { label: string, value: string[], 
 
   return (
     <div className="flex flex-col space-y-2">
-      <label className="text-sm font-medium text-gray-300">{label}</label>
+      <label className="text-xs font-bold text-foreground/90">{label}</label>
       <div className="flex flex-wrap gap-2 mb-2">
         {value.map((tag, idx) => (
-          <span key={idx} className="px-3 py-1 bg-blue-500/20 text-blue-400 text-sm rounded-full flex items-center border border-blue-500/30">
+          <span key={idx} className="px-3 py-1 bg-primary-glow text-primary text-xs font-semibold rounded-full flex items-center border border-primary/20 shadow-sm animate-in fade-in duration-100">
             {tag}
-            <button type="button" onClick={() => removeTag(tag)} className="ml-2 hover:text-white">&times;</button>
+            <button type="button" onClick={() => removeTag(tag)} className="ml-2 hover:text-foreground opacity-75 hover:opacity-100 font-bold">&times;</button>
           </span>
         ))}
       </div>
@@ -38,7 +38,7 @@ const TagInput = ({ label, value, onChange }: { label: string, value: string[], 
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Type and press Enter"
-        className="w-full bg-[#111318] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder:text-gray-600"
+        className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary placeholder:text-muted-text text-sm transition-all shadow-inner"
       />
     </div>
   );
@@ -139,87 +139,89 @@ export default function CareerProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#0a0b0e] h-full">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex-1 flex items-center justify-center bg-background h-full">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (error && !profile) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0b0e] h-full text-white">
-        <p className="text-red-400 mb-4">{error}</p>
-        <button onClick={loadProfile} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">Retry</button>
+      <div className="flex-1 flex flex-col items-center justify-center bg-background h-full text-foreground px-4 text-center">
+        <p className="text-accent-red font-semibold mb-4">{error}</p>
+        <button onClick={loadProfile} className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold cursor-pointer text-xs shadow-sm">
+          Retry Connection
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0a0b0e] h-full">
+    <div className="flex-1 overflow-y-auto bg-background h-full">
       <div className="max-w-4xl mx-auto px-8 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Career Profile</h1>
-          <p className="text-gray-400">Configure your preferences for personalized job recommendations.</p>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight mb-2">Career Profile</h1>
+          <p className="text-muted-text text-sm font-medium">Configure matching parameters, upload active resume PDF, and tweak AI matching variables.</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl">
+          <div className="mb-6 p-4.5 bg-accent-red/10 border border-accent-red/20 text-accent-red rounded-xl text-xs font-semibold shadow-sm animate-in fade-in duration-200">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 text-green-400 rounded-xl transition-all">
+          <div className="mb-6 p-4.5 bg-accent-green/10 border border-accent-green/20 text-accent-green rounded-xl text-xs font-semibold shadow-sm animate-in fade-in duration-200">
             {success}
           </div>
         )}
 
         {profile && (
-          <form onSubmit={handleSubmit} className="space-y-8 bg-[#111318] p-8 rounded-2xl border border-gray-800/60 shadow-lg">
+          <form onSubmit={handleSubmit} className="space-y-8 bg-card p-8 rounded-2xl border border-card-border shadow-sm">
             
             {/* Basic Info */}
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Basic Information</h2>
+              <h2 className="text-lg font-bold text-foreground border-b border-card-border pb-3">Basic Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Full Name</label>
+                  <label className="text-xs font-bold text-foreground/90">Full Name</label>
                   <input
                     type="text"
                     name="fullName"
                     value={profile.fullName || ''}
                     onChange={handleChange}
-                    className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                    className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary text-sm shadow-inner"
                   />
                 </div>
                 <div className="flex flex-col space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Professional Headline</label>
+                  <label className="text-xs font-bold text-foreground/90">Professional Headline</label>
                   <input
                     type="text"
                     name="headline"
                     value={profile.headline || ''}
                     onChange={handleChange}
                     placeholder="e.g. Senior Software Engineer"
-                    className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                    className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary text-sm placeholder:text-muted-text shadow-inner"
                   />
                 </div>
                 <div className="flex flex-col space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Years of Experience</label>
+                  <label className="text-xs font-bold text-foreground/90">Years of Experience</label>
                   <input
                     type="number"
                     name="yearsOfExperience"
                     value={profile.yearsOfExperience || 0}
                     onChange={handleChange}
-                    className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                    className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary text-sm shadow-inner"
                   />
                 </div>
                 <div className="flex flex-col space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Minimum Salary (USD)</label>
+                  <label className="text-xs font-bold text-foreground/90">Minimum Salary Requirement (USD)</label>
                   <input
                     type="number"
                     name="minimumSalary"
                     value={profile.minimumSalary || 0}
                     onChange={handleChange}
-                    className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50"
+                    className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary text-sm shadow-inner"
                   />
                 </div>
               </div>
@@ -227,15 +229,15 @@ export default function CareerProfilePage() {
 
             {/* Resume & AI Matcher Preferences */}
             <div className="space-y-6 pt-4">
-              <h2 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Resume & AI Matching</h2>
+              <h2 className="text-lg font-bold text-foreground border-b border-card-border pb-3">Resume & AI Matching</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Resume Upload */}
-                <div className="flex flex-col space-y-2 bg-[#0a0b0e] p-5 rounded-xl border border-gray-800/80">
-                  <label className="text-sm font-medium text-gray-300">Resume PDF</label>
-                  <p className="text-xs text-gray-500">Upload your resume to calculate personalized match scores against job boards.</p>
+                <div className="flex flex-col space-y-2 bg-sidebar border border-card-border p-5 rounded-xl">
+                  <label className="text-xs font-bold text-foreground/90">Resume PDF</label>
+                  <p className="text-[11px] text-muted-text font-medium leading-relaxed">Upload resume profile PDF. TraceLM matches resume context to scraped board listings.</p>
                   
-                  <div className="flex items-center space-x-4 mt-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-3">
                     <input 
                       type="file" 
                       accept=".pdf" 
@@ -247,51 +249,48 @@ export default function CareerProfilePage() {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingResume}
-                      className="flex items-center space-x-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border border-blue-500/20 px-4 py-2.5 rounded-xl transition-colors font-medium text-sm disabled:opacity-50"
+                      className="flex items-center space-x-2 bg-primary-glow text-primary hover:bg-primary/20 border border-primary/20 hover:border-primary/35 px-4 py-2.5 rounded-xl transition-all font-bold text-xs disabled:opacity-50 cursor-pointer shadow-sm"
                     >
                       {uploadingResume ? (
-                        <div className="w-4 h-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin"></div>
+                        <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
                       ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                       )}
-                      <span>{uploadingResume ? 'Processing...' : 'Upload PDF Resume'}</span>
+                      <span>{uploadingResume ? 'Processing...' : 'Upload PDF'}</span>
                     </button>
                     
                     {profile.resumeFileName ? (
                       <div className="flex flex-col min-w-0">
-                        <span className="text-sm text-gray-300 font-medium truncate">{profile.resumeFileName}</span>
-                        <span className="text-xs text-green-400 font-semibold flex items-center mt-0.5">
-                          <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                        <span className="text-xs text-foreground font-semibold truncate max-w-[180px]">{profile.resumeFileName}</span>
+                        <span className="text-[9px] text-accent-green font-bold flex items-center mt-1 uppercase tracking-wider bg-accent-green/10 border border-accent-green/20 px-2 py-0.5 rounded w-max">
                           Parsed & Active
                         </span>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-500 italic">No resume uploaded yet</span>
+                      <span className="text-xs text-muted-text italic font-medium">No active file</span>
                     )}
                   </div>
                 </div>
 
                 {/* Additional preferences notes */}
                 <div className="flex flex-col space-y-2">
-                  <label className="text-sm font-medium text-gray-300">Additional Preferences & Notes</label>
-                  <p className="text-xs text-gray-500">Explain what you are looking for in your own words. The AI will factor this into the job match score.</p>
+                  <label className="text-xs font-bold text-foreground/90">Matcher Guidelines</label>
+                  <p className="text-[11px] text-muted-text font-medium leading-relaxed font-medium">Write parameters in your own words. The LLM will factor guidelines into scoring weights.</p>
                   <textarea
                     name="additionalNotes"
                     value={profile.additionalNotes || ''}
                     onChange={(e) => setProfile(prev => prev ? { ...prev, additionalNotes: e.target.value } : null)}
-                    placeholder="e.g. I prefer modern tech stacks using Next.js and Go. I'm looking for a collaborative team environment and want to avoid finance/crypto domains."
+                    placeholder="e.g. Focus on modern tech stacks using React/Next.js and Go. I'm looking for a collaborative team environment and want to avoid finance/crypto domains."
                     rows={4}
-                    className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 resize-none text-sm placeholder:text-gray-600 mt-1"
+                    className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary resize-none text-sm placeholder:text-muted-text mt-1 shadow-inner leading-relaxed"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Preferences */}
+            {/* Preferences checkboxes */}
             <div className="space-y-6 pt-4">
-              <h2 className="text-xl font-semibold text-white border-b border-gray-800 pb-2">Preferences</h2>
+              <h2 className="text-lg font-bold text-foreground border-b border-card-border pb-3">Preferences</h2>
               
               <div className="flex items-center space-x-3 mb-4">
                 <input
@@ -300,20 +299,20 @@ export default function CareerProfilePage() {
                   name="remoteOnly"
                   checked={profile.remoteOnly || false}
                   onChange={handleChange}
-                  className="w-5 h-5 rounded border-gray-700 bg-[#0a0b0e] text-blue-500 focus:ring-blue-500 focus:ring-offset-[#111318]"
+                  className="w-4.5 h-4.5 rounded border-input-border bg-input-bg text-primary focus:ring-primary focus:ring-offset-background cursor-pointer"
                 />
-                <label htmlFor="remoteOnly" className="text-sm font-medium text-gray-300 cursor-pointer">
-                  Remote Only
+                <label htmlFor="remoteOnly" className="text-xs font-bold text-foreground/90 cursor-pointer">
+                  Remote Only Positions
                 </label>
               </div>
 
               <div className="flex flex-col space-y-2">
-                <label className="text-sm font-medium text-gray-300">Preferred Employment Types</label>
+                <label className="text-xs font-bold text-foreground/90">Preferred Employment Types</label>
                 <select
                   multiple
                   value={profile.preferredEmploymentTypes || []}
                   onChange={handleMultiSelect}
-                  className="w-full bg-[#0a0b0e] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500/50 min-h-[100px]"
+                  className="w-full bg-input-bg border border-input-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary-glow focus:border-primary min-h-[120px] text-sm shadow-inner"
                 >
                   <option value="Full-Time">Full-Time</option>
                   <option value="Part-Time">Part-Time</option>
@@ -321,7 +320,7 @@ export default function CareerProfilePage() {
                   <option value="Freelance">Freelance</option>
                   <option value="Internship">Internship</option>
                 </select>
-                <p className="text-xs text-gray-500">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</p>
+                <p className="text-[10px] text-muted-text font-semibold">Hold Ctrl (Windows) or Cmd (Mac) to select multiple types</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -353,13 +352,13 @@ export default function CareerProfilePage() {
               </div>
             </div>
 
-            <div className="pt-6 border-t border-gray-800 flex justify-end">
+            <div className="pt-6 border-t border-card-border flex justify-end">
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all shadow-lg shadow-blue-500/20"
+                className="px-6 py-3 bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-background font-bold rounded-xl transition-all shadow-[0_2px_8px_var(--primary-glow)] hover:shadow-[0_4px_12px_var(--primary-glow)] cursor-pointer text-sm"
               >
-                {saving ? 'Saving Changes...' : 'Save Changes'}
+                {saving ? 'Saving Preferences...' : 'Save Profile Changes'}
               </button>
             </div>
           </form>

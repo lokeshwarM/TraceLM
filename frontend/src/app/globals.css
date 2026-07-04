@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
 :root {
+  /* Light Mode Design Tokens - Sleek Grayscale Dashboard */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #09090b;
+  
+  --sidebar: #f4f4f5;
+  --sidebar-border: #e4e4e7;
+  
+  --card: #ffffff;
+  --card-border: #e4e4e7;
+  --card-hover: #f4f4f5;
+  
+  --primary: #09090b;
+  --primary-hover: #27272a;
+  --primary-glow: rgba(9, 9, 11, 0.05);
+  
+  --muted: #71717a;
+  --border: #e4e4e7;
+  
+  --accent-blue: #09090b;
+  --accent-purple: #27272a;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
+
+  --chat-bubble-user: #09090b;
+  --chat-bubble-user-text: #ffffff;
+  --chat-bubble-assistant: #f4f4f5;
+  --chat-bubble-assistant-text: #09090b;
+  
+  --input-bg: #ffffff;
+  --input-border: #e4e4e7;
+  --input-focus: #09090b;
 }
 
-@theme inline {
+.dark {
+  /* Dark Mode Design Tokens - Premium Pure Black Vercel-Style */
+  --background: #000000;
+  --foreground: #f4f4f5;
+  
+  --sidebar: #09090b;
+  --sidebar-border: #18181b;
+  
+  --card: #09090b;
+  --card-border: #18181b;
+  --card-hover: #18181b;
+  
+  --primary: #ffffff;
+  --primary-hover: #e4e4e7;
+  --primary-glow: rgba(255, 255, 255, 0.07);
+  
+  --muted: #a1a1aa;
+  --border: #18181b;
+  
+  --accent-blue: #ffffff;
+  --accent-purple: #e4e4e7;
+  --accent-green: #10b981;
+  --accent-red: #ef4444;
+  --accent-amber: #f59e0b;
+
+  --chat-bubble-user: #27272a;
+  --chat-bubble-user-text: #ffffff;
+  --chat-bubble-assistant: #09090b;
+  --chat-bubble-assistant-text: #f4f4f5;
+  
+  --input-bg: #09090b;
+  --input-border: #18181b;
+  --input-focus: #ffffff;
+}
+
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-card: var(--card);
+  --color-card-border: var(--card-border);
+  --color-card-hover: var(--card-hover);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-glow: var(--primary-glow);
+  --color-muted-text: var(--muted);
+  --color-border-custom: var(--border);
+  
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-green: var(--accent-green);
+  --color-accent-red: var(--accent-red);
+  --color-accent-amber: var(--accent-amber);
+
+  --color-chat-user: var(--chat-bubble-user);
+  --color-chat-user-text: var(--chat-bubble-user-text);
+  --color-chat-assistant: var(--chat-bubble-assistant);
+  --color-chat-assistant-text: var(--chat-bubble-assistant-text);
+
+  --color-input-bg: var(--input-bg);
+  --color-input-border: var(--input-border);
+  --color-input-focus: var(--input-focus);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base resets & transitions */
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-glow);
+}
+
+/* Enterprise Mesh Gradient Overlay */
+.mesh-gradient-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.8;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(at 0% 0%, var(--primary-glow) 0, transparent 40%),
+    radial-gradient(at 100% 100%, var(--primary-glow) 0, transparent 50%);
+}
+
+.mesh-grid {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+}
+.light .mesh-grid {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
 }

@@ -72,48 +72,50 @@ export default function CareerAutomationDashboardPage() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto bg-[#0a0b0e]">
-      <header className="w-full pt-10 pb-8 px-8 sm:px-10 lg:px-12 shrink-0 border-b border-gray-800/40 bg-[#0f1115]/80 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+    <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto bg-background">
+      {/* Header */}
+      <header className="w-full pt-10 pb-8 px-8 sm:px-10 lg:px-12 shrink-0 border-b border-card-border bg-card/85 backdrop-blur-md sticky top-0 z-10 flex items-center justify-between">
         <div>
-          <div className="flex items-center space-x-2 text-sm text-blue-400 mb-2">
+          <div className="flex items-center space-x-2 text-xs text-primary mb-2.5 font-bold uppercase tracking-wider">
             <Link href="/automation" className="hover:underline flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back to Automations
+              <span>Back to Automations</span>
             </Link>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Career Automation</h1>
-          <p className="text-gray-400 text-sm mt-2">Manage your personalized job feeds, searches, matches, and profile.</p>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Career Automation</h1>
+          <p className="text-muted-text text-sm mt-2 font-medium">Manage your personalized job feeds, searches, matches, and application profile.</p>
         </div>
       </header>
 
+      {/* Main cards grid */}
       <main className="w-full max-w-7xl mx-auto flex-1 flex flex-col px-8 sm:px-10 lg:px-12 py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cards.map((card, idx) => {
             const cardContent = (
-              <div className={`flex flex-col h-full p-6 rounded-2xl border ${card.clickable ? 'bg-[#161921] border-gray-800/60 hover:border-blue-500/50 hover:bg-[#1a1d27] transition-all cursor-pointer shadow-lg hover:shadow-blue-900/20' : 'bg-[#111318] border-gray-800/30 opacity-70 cursor-not-allowed'}`}>
+              <div className={`flex flex-col h-full p-6 rounded-2xl border transition-all duration-300 ${card.clickable ? 'bg-card border-card-border hover:border-primary/40 hover:bg-card-hover cursor-pointer shadow-sm hover:shadow-lg' : 'bg-sidebar/40 border-card-border/40 opacity-60 cursor-not-allowed'}`}>
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${card.clickable ? 'bg-blue-500/10 text-blue-400' : 'bg-gray-800/30 text-gray-500'}`}>
+                  <div className={`p-3 rounded-xl ${card.clickable ? 'bg-primary-glow text-primary border border-primary/20' : 'bg-sidebar text-muted-text border border-sidebar-border'}`}>
                     {card.icon}
                   </div>
                   {!card.clickable && (
-                    <span className="px-3 py-1 text-xs font-medium bg-gray-800/50 text-gray-400 rounded-full border border-gray-700/30">
-                      Coming Soon
+                    <span className="px-3 py-1 text-[10px] font-bold bg-sidebar text-muted-text rounded-full border border-sidebar-border uppercase tracking-wide">
+                      Soon
                     </span>
                   )}
                 </div>
-                <h3 className={`text-xl font-semibold mb-2 ${card.clickable ? 'text-white' : 'text-gray-400'}`}>
+                <h3 className={`text-lg font-bold mb-2 ${card.clickable ? 'text-foreground' : 'text-muted-text'}`}>
                   {card.title}
                 </h3>
-                <p className="text-gray-400 text-sm leading-relaxed flex-1">
+                <p className="text-muted-text text-xs font-semibold leading-relaxed flex-1">
                   {card.description}
                 </p>
                 {card.clickable && (
-                  <div className="mt-6 flex items-center text-blue-400 text-sm font-medium group-hover:text-blue-300">
-                    Get Started
+                  <div className="mt-6 flex items-center text-primary text-xs font-bold group-hover:text-primary-hover">
+                    <span>Open Panel</span>
                     <svg className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
                 )}
