@@ -35,7 +35,7 @@ google:
     secret: ${GOOGLE_CLIENT_SECRET}
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 llm:
   default-provider: gemini
