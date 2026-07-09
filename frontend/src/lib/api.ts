@@ -13,12 +13,17 @@ import {
     SourceMetadata
 } from './types';
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL;
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export const CHAT_BASE_URL = `${API_BASE_URL}/chat`;
 
 if (typeof window !== 'undefined') {
-    console.log('[TraceLM] API Base URL resolved to:', API_BASE_URL);
+    if (!API_BASE_URL) {
+        console.error('[TraceLM] CRITICAL ERROR: NEXT_PUBLIC_API_BASE_URL is not configured.');
+    } else if (API_BASE_URL.includes('localhost') && window.location.hostname !== 'localhost') {
+        console.error(`[TraceLM] CRITICAL ERROR: App is running in production (${window.location.hostname}) but NEXT_PUBLIC_API_BASE_URL is set to localhost (${API_BASE_URL}). Please update your Vercel Environment Variables and Redeploy WITHOUT build cache.`);
+    } else {
+        console.log('[TraceLM] API Base URL resolved to:', API_BASE_URL);
+    }
 }
 
 async function fetchWithAuth(url: string, options: RequestInit = {}, timeoutMs = 30000): Promise<Response> {

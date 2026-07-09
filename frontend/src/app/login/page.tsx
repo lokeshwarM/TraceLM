@@ -9,6 +9,10 @@ import LogoBadge from '@/components/brand/Logo';
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
+if (typeof window !== 'undefined' && !CLIENT_ID) {
+    console.warn('[TraceLM] WARNING: NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured. Google Sign-in will fail.');
+}
+
 function LoginContent() {
     const router = useRouter();
     const [email, setEmail] = useState('');
