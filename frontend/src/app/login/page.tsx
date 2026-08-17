@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { setToken, isAuthenticated } from '@/lib/auth';
+import { useAuth } from '@/lib/AuthContext';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { API_BASE_URL } from '@/lib/api';
 import LogoBadge from '@/components/brand/Logo';
@@ -15,6 +16,7 @@ if (typeof window !== 'undefined' && !CLIENT_ID) {
 
 function LoginContent() {
     const router = useRouter();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [step, setStep] = useState<'EMAIL' | 'OTP'>('EMAIL');
@@ -39,8 +41,7 @@ function LoginContent() {
                 });
                 if (!res.ok) throw new Error('Google authentication failed');
                 const data = await res.json();
-                setToken(data.token);
-                router.push('/chat');
+                await login(data.token);
             } catch (err: any) {
                 setError(err.message || 'Error with Google login');
             } finally {
@@ -83,8 +84,7 @@ function LoginContent() {
             });
             if (!res.ok) throw new Error('Invalid or expired OTP');
             const data = await res.json();
-            setToken(data.token);
-            router.push('/chat');
+            await login(data.token);
         } catch (err: any) {
             setError(err.message || 'Error verifying OTP');
         } finally {
