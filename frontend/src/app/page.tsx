@@ -2,7 +2,32 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import LogoBadge from '@/components/brand/Logo';
+
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+        opacity: 1,
+        transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+        opacity: 1, y: 0, 
+        transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+};
+
+const scaleVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { 
+        opacity: 1, scale: 1, 
+        transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+};
 
 export default function LandingPage() {
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -37,7 +62,12 @@ export default function LandingPage() {
             <div className="mesh-grid absolute inset-0 opacity-40 pointer-events-none"></div>
 
             {/* Sticky Header Nav */}
-            <nav className="w-full border-b border-card-border bg-card/75 backdrop-blur-md sticky top-0 z-50 transition-colors">
+            <motion.nav 
+                initial={{ y: -100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="w-full border-b border-card-border bg-card/75 backdrop-blur-md sticky top-0 z-50 transition-colors"
+            >
                 <div className="max-w-7xl mx-auto flex items-center justify-between px-6 sm:px-8 py-4">
                     <Link href="/" className="flex items-center gap-3 group">
                         <LogoBadge size="w-9 h-9" iconSize="w-5.5 h-5.5" />
@@ -69,20 +99,25 @@ export default function LandingPage() {
                         </Link>
                     </div>
                 </div>
-            </nav>
+            </motion.nav>
 
             {/* Hero Main Content */}
-            <header className="max-w-7xl mx-auto px-6 sm:px-8 pt-20 pb-16 text-center relative z-10">
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary-glow border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
+            <motion.header 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="max-w-7xl mx-auto px-6 sm:px-8 pt-20 pb-16 text-center relative z-10"
+            >
+                <motion.span variants={itemVariants} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary-glow border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
                     ⚡ Version 1.0 Release
-                </span>
-                <h1 className="text-5xl md:text-7xl font-black tracking-tight text-foreground mb-6 max-w-5xl mx-auto leading-tight">
+                </motion.span>
+                <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-black tracking-tight text-foreground mb-6 max-w-5xl mx-auto leading-tight">
                     Observability Trace Hub & Multi-Agent Automations for LLMs
-                </h1>
-                <p className="text-lg md:text-xl text-muted-text max-w-3xl mx-auto mb-10 leading-relaxed font-semibold">
+                </motion.h1>
+                <motion.p variants={itemVariants} className="text-lg md:text-xl text-muted-text max-w-3xl mx-auto mb-10 leading-relaxed font-semibold">
                     An enterprise console engineered to track conversation latency, compare outputs side-by-side, automate PII redactions, manage vector knowledge bases, and run background automation pipelines.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                </motion.p>
+                <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Link 
                         href="/login" 
                         className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-background px-8 py-4 rounded-xl text-lg font-bold transition-all shadow-[0_4px_14px_0_var(--primary-glow)] hover:shadow-[0_6px_22px_0_var(--primary-glow)] hover:-translate-y-0.5"
@@ -98,11 +133,17 @@ export default function LandingPage() {
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" /></svg>
                         <span>View Source Code</span>
                     </a>
-                </div>
-            </header>
+                </motion.div>
+            </motion.header>
 
             {/* Interactive Dashboard Layout Showcase (Stunning Dashboard Preview UI) */}
-            <section className="max-w-7xl mx-auto px-6 sm:px-8 py-10 w-full z-10 relative">
+            <motion.section 
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={scaleVariants}
+                className="max-w-7xl mx-auto px-6 sm:px-8 py-10 w-full z-10 relative"
+            >
                 <div className="bg-card border border-card-border rounded-3xl p-6 shadow-2xl flex flex-col gap-6 overflow-hidden">
                     {/* Mock Telemetry top-bar */}
                     <div className="flex items-center justify-between border-b border-card-border/80 pb-4 flex-wrap gap-3">
@@ -117,9 +158,15 @@ export default function LandingPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <motion.div 
+                        variants={containerVariants} 
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+                    >
                         {/* Live Feature 1: PII Redaction Pipeline */}
-                        <div className="bg-sidebar border border-sidebar-border rounded-2xl p-5 flex flex-col justify-between shadow-inner">
+                        <motion.div variants={itemVariants} className="bg-sidebar border border-sidebar-border rounded-2xl p-5 flex flex-col justify-between shadow-inner">
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-accent-red">Security Middleware</span>
@@ -132,10 +179,10 @@ export default function LandingPage() {
                                 <div className="text-muted-text">Input: <span className="text-foreground">"My email is alex@google.com and phone is 9988-77"</span></div>
                                 <div className="text-accent-red font-bold">Trace: <span className="bg-accent-red/10 border border-accent-red/20 text-accent-red px-1.5 py-0.5 rounded uppercase tracking-wider text-[8px] font-black">PII REDACTED</span></div>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Live Feature 2: Side-by-Side Model Compare */}
-                        <div className="bg-sidebar border border-sidebar-border rounded-2xl p-5 flex flex-col justify-between shadow-inner">
+                        <motion.div variants={itemVariants} className="bg-sidebar border border-sidebar-border rounded-2xl p-5 flex flex-col justify-between shadow-inner">
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-accent-purple">Evaluation Engine</span>
@@ -154,10 +201,10 @@ export default function LandingPage() {
                                     <div className="text-xs font-black text-foreground mt-1">395ms</div>
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Live Feature 3: Vector RAG Retrieval */}
-                        <div className="bg-sidebar border border-sidebar-border rounded-2xl p-5 flex flex-col justify-between shadow-inner">
+                        <motion.div variants={itemVariants} className="bg-sidebar border border-sidebar-border rounded-2xl p-5 flex flex-col justify-between shadow-inner">
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-accent-blue">RAG Knowledge Base</span>
@@ -170,83 +217,101 @@ export default function LandingPage() {
                                 <span className="text-[10px] text-foreground font-bold truncate max-w-[120px]">handbook_2026.pdf</span>
                                 <span className="text-[9px] text-accent-green bg-accent-green/10 border border-accent-green/20 px-2 py-0.5 rounded-full font-bold">READY</span>
                             </div>
-                        </div>
-                    </div>
+                        </motion.div>
+                    </motion.div>
                 </div>
-            </section>
+            </motion.section>
 
             {/* Core Feature Deep-Dive Grid */}
             <section className="max-w-7xl mx-auto px-6 sm:px-8 py-20 w-full z-10 relative">
-                <div className="text-center mb-16">
+                <motion.div 
+                    initial="hidden" 
+                    whileInView="visible" 
+                    viewport={{ once: true, margin: "-50px" }}
+                    variants={itemVariants} 
+                    className="text-center mb-16"
+                >
                     <h2 className="text-3xl md:text-5xl font-black text-foreground mb-4">Comprehensive Multi-Agent Toolkit</h2>
                     <p className="text-muted-text text-md max-w-2xl mx-auto font-semibold">Everything you need to orchestrate observational workspaces, redact logs, manage memories, and execute automations.</p>
-                </div>
+                </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: "-100px" }}
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+                >
                     {/* Item 1: Observatory Chat */}
-                    <div className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
+                    <motion.div variants={itemVariants} className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-accent-purple/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="w-12 h-12 bg-primary-glow border border-primary/20 text-primary flex items-center justify-center rounded-xl mb-6 shadow-sm">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         </div>
                         <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">Conversation Explorer</h3>
                         <p className="text-muted-text leading-relaxed text-sm font-medium">Dictate or type questions, stream responses, and track real-time inputs/outputs token allocations inside a clean workspace.</p>
-                    </div>
+                    </motion.div>
 
                     {/* Item 2: Vector RAG Base */}
-                    <div className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
+                    <motion.div variants={itemVariants} className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-accent-purple/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="w-12 h-12 bg-primary-glow border border-primary/20 text-primary flex items-center justify-center rounded-xl mb-6 shadow-sm">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         </div>
                         <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">Knowledge Base Docs</h3>
                         <p className="text-muted-text leading-relaxed text-sm font-medium">Upload technical logs, team wikis, and PDF manuals. The server parses text chunks to inject context dynamically into LLM triggers.</p>
-                    </div>
+                    </motion.div>
 
                     {/* Item 3: Memory Summary Store */}
-                    <div className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
+                    <motion.div variants={itemVariants} className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-accent-purple/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="w-12 h-12 bg-primary-glow border border-primary/20 text-primary flex items-center justify-center rounded-xl mb-6 shadow-sm">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                         </div>
                         <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">Long-term Memory Store</h3>
                         <p className="text-muted-text leading-relaxed text-sm font-medium">Pin key conversations to write long-term memory digests. The system trims older context windows without losing important reference structures.</p>
-                    </div>
+                    </motion.div>
 
                     {/* Item 4: Career Match Engine */}
-                    <div className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
+                    <motion.div variants={itemVariants} className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-accent-purple/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="w-12 h-12 bg-primary-glow border border-primary/20 text-primary flex items-center justify-center rounded-xl mb-6 shadow-sm">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                         </div>
                         <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">Career Automation</h3>
                         <p className="text-muted-text leading-relaxed text-sm font-medium">Matches job boards postings to your resume. Creates matching scores based on skills, headline tags, and excluded keywords.</p>
-                    </div>
+                    </motion.div>
 
                     {/* Item 5: Unified Job Boards Search */}
-                    <div className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
+                    <motion.div variants={itemVariants} className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-accent-purple/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="w-12 h-12 bg-primary-glow border border-primary/20 text-primary flex items-center justify-center rounded-xl mb-6 shadow-sm">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                         </div>
                         <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">Unified Board Search</h3>
                         <p className="text-muted-text leading-relaxed text-sm font-medium">Search across multiple provider APIs via one dashboard. Apply remote filter toggles and bookmark listings Optimistically.</p>
-                    </div>
+                    </motion.div>
 
                     {/* Item 6: Real-time Telemetry Charts */}
-                    <div className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
+                    <motion.div variants={itemVariants} className="bg-card border border-card-border p-8 rounded-2xl hover:border-primary/30 transition-all duration-300 group shadow-sm hover:shadow-lg relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-accent-purple/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <div className="w-12 h-12 bg-primary-glow border border-primary/20 text-primary flex items-center justify-center rounded-xl mb-6 shadow-sm">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                         </div>
                         <h3 className="text-xl font-bold mb-3 text-foreground group-hover:text-primary transition-colors">Telemetry Charts</h3>
                         <p className="text-muted-text leading-relaxed text-sm font-medium">Real-time health stats showing overall request metrics, latency trend over time, and provider frequency ratios.</p>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             </section>
 
             {/* Platform call to action (CTA) */}
-            <section className="border-t border-card-border bg-card/40 py-20 px-6 sm:px-8 text-center relative z-10">
+            <motion.section 
+                initial="hidden" 
+                whileInView="visible" 
+                viewport={{ once: true }}
+                variants={scaleVariants}
+                className="border-t border-card-border bg-card/40 py-20 px-6 sm:px-8 text-center relative z-10"
+            >
                 <div className="max-w-4xl mx-auto">
                     <h2 className="text-3xl md:text-5xl font-black text-foreground mb-6">Orchestrate Production LLM Observability</h2>
                     <p className="text-md text-muted-text mb-10 leading-relaxed font-semibold max-w-2xl mx-auto">Start exploring multi-provider trace logs, configure PII sanitization pipelines, and automate matching tasks today.</p>
@@ -257,7 +322,7 @@ export default function LandingPage() {
                         Access Telemetry Console
                     </Link>
                 </div>
-            </section>
+            </motion.section>
 
             {/* Footer */}
             <footer className="w-full py-8 text-center text-xs text-muted-text border-t border-card-border bg-card/60 relative z-10 font-bold uppercase tracking-wider">
