@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ConversationsProvider } from "@/lib/ConversationsContext";
-import { CursorGlow } from "@/components/animations/CursorGlow";
+import SplashCursor from "@/components/animations/SplashCursor";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,7 +38,7 @@ export default function RootLayout({
               (function() {
                 try {
                   var theme = localStorage.getItem('tracelm_theme');
-                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  if (theme === 'dark' || !theme) {
                     document.documentElement.classList.add('dark');
                     document.documentElement.style.colorScheme = 'dark';
                   } else {
@@ -54,7 +54,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AuthProvider>
           <ConversationsProvider>
-            <CursorGlow />
+            <SplashCursor />
             {children}
           </ConversationsProvider>
         </AuthProvider>
