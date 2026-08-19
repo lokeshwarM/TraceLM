@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { setToken, isAuthenticated } from '@/lib/auth';
 import { useAuth } from '@/lib/AuthContext';
+import { motion } from 'framer-motion';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import { API_BASE_URL } from '@/lib/api';
 import LogoBadge from '@/components/brand/Logo';
@@ -23,11 +23,7 @@ function LoginContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        if (isAuthenticated()) {
-            router.push('/chat');
-        }
-    }, [router]);
+
 
     const handleGoogleLogin = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
@@ -93,8 +89,14 @@ function LoginContent() {
     };
 
     return (
-        <div className="w-full max-w-md bg-card border border-card-border rounded-2xl shadow-xl p-8 relative z-10">
-            <div className="text-center mb-8">
+        <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+            className="w-full max-w-md backdrop-blur-2xl bg-card/70 border border-card-border/60 rounded-2xl shadow-2xl p-8 relative z-10 overflow-hidden ring-1 ring-white/5"
+        >
+            <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-transparent pointer-events-none" />
+            <div className="relative text-center mb-8">
                 <div className="inline-flex mb-4">
                     <LogoBadge size="w-11 h-11" iconSize="w-6.5 h-6.5" />
                 </div>
@@ -171,7 +173,7 @@ function LoginContent() {
                     </button>
                 </form>
             )}
-        </div>
+        </motion.div>
     );
 }
 
