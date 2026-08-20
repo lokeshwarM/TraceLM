@@ -28,7 +28,7 @@ const itemVariants: Variants = {
 
 export default function WorkspaceHubPage() {
   return (
-    <div className="flex-1 w-full h-full min-h-screen bg-background relative overflow-y-auto overflow-x-hidden flex flex-col items-center justify-center p-6 sm:p-12">
+    <div className="flex-1 w-full h-full min-h-screen bg-background relative overflow-y-auto overflow-x-hidden flex flex-col items-center justify-start pt-16 pb-20 px-6 sm:px-12">
       
       {/* Background Decorators */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary-glow/20 blur-[150px] rounded-full pointer-events-none" />
